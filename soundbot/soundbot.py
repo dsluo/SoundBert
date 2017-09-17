@@ -1,12 +1,12 @@
+import asyncio
 import hashlib
 import json
+import logging
 import os
 from json import JSONDecodeError
 
 import aiohttp
-import asyncio
 import discord
-import logging
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -133,7 +133,7 @@ class SoundBot(discord.Client):
                         os.rename(f'{os.getcwd()}/tempsound', f'{sound_dir}/{filename}')
 
                         self.sounds[name] = filename
-                        log.info(f'Saved {name} as {filename}.')
+                        log.info(f'Saved "{name}" as "{filename}".')
                         await self.send_message(msg.channel, f'Saved **{name}**.')
                         self._update_json()
                     except FileExistsError:
@@ -175,6 +175,7 @@ class SoundBot(discord.Client):
             '| -<name>                | Remove a sound             |\n'
             '| ~<name> <new_name>     | Rename a sound             |\n'
             '| $list                  | Print a list of all sounds |\n'
+            '| $stop                  | Force stop sound playback  |\n'
             '| $help                  | Print this message         |\n'
             '+------------------------+----------------------------+\n'
             '```'

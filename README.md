@@ -23,4 +23,5 @@ _**TODO**_: how to actually run the bot
 | `-<name>`                | Remove a sound             |
 | `~<name> <new_name>`     | Rename a sound             |
 | `$list`                  | Print a list of all sounds |
-| `$help`                  | Print this message         |
+| `$stop`                  | Force stop sound playback  |
+| `$help`                  | Print help message         |
