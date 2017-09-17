@@ -64,6 +64,8 @@ class SoundBot(discord.Client):
                 await self.help(msg)
             elif arg == 'list':
                 await self.list(msg)
+            elif arg == 'stop':
+                await self.stop(msg)
 
     async def play_sound(self, msg: discord.Message, name: str):
         try:
@@ -184,9 +186,15 @@ class SoundBot(discord.Client):
         if len(self.sounds) == 0:
             message = 'No sounds yet. Add one with `+<name> <link>`!'
         else:
-            sounds = ', '.join(self.sounds)
+            sounds = ', '.join(sorted(self.sounds))
             message = f'Sounds:\n{sounds}'
         await self.send_message(msg.channel, message)
+
+    async def stop(self, msg: discord.Message):
+        if not self.is_voice_connected(msg.server):
+            return
+        client = self.voice_client_in(msg.server)
+        await client.disconnect()
 
     def _update_json(self):
         with open('sounds.json', 'w') as f:
