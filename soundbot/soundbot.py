@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 import os
+from collections import OrderedDict
 from json import JSONDecodeError
 
 import aiohttp
@@ -187,8 +188,23 @@ class SoundBot(discord.Client):
         if len(self.sounds) == 0:
             message = 'No sounds yet. Add one with `+<name> <link>`!'
         else:
-            sounds = ', '.join(sorted(self.sounds))
-            message = f'Sounds:\n{sounds}'
+            sorted_sounds = sorted(self.sounds.keys())
+            split = OrderedDict()
+            for sound in sorted_sounds:
+                first = sound[0].lower()
+                if first not in 'abcdefghijklmnopqrstuvwxyz':
+                    first = '#'
+                if first not in split.keys():
+                    split[first] = [sound]
+                else:
+                    split[first].append(sound)
+
+            message = '**Sounds**\n'
+
+            for letter, sounds in split.items():
+                line = f'**`{letter}`**: {", ".join(sounds)}\n'
+                message += line
+
         await self.send_message(msg.channel, message)
 
     async def stop(self, msg: discord.Message):
