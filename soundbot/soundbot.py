@@ -116,7 +116,7 @@ class SoundBot(discord.Client):
 
                     # Write response to temporary file and moves it to the /sounds directory when done.
                     # Filename = blake2 hash of file
-                    hash = hashlib.blake2s()
+                    hash = hashlib.blake2b()
                     with open(f'{os.getcwd()}/tempsound', 'wb') as f:
                         while True:
                             chunk = await resp.content.read(1024)
