@@ -52,7 +52,28 @@ class SoundBot(discord.Client):
         text = msg.content[1:].split()
 
         if prefix == '!':
-            await self.play_sound(msg, *text)
+            speed = None
+            volume = None
+
+            for word in text[1:]:
+                if word.startswith('s'):
+                    try:
+                        speed = int(word[1:])
+                        break
+                    except ValueError:
+                        pass
+
+            for word in text[1:]:
+                if word.startswith('v'):
+                    try:
+                        volume = int(word[1:])
+                        break
+                    except ValueError:
+                        pass
+            if volume is None:
+                volume = 100
+
+            await self.play_sound(msg, text[0], speed, volume)
         elif prefix == '+':
             await self.add_sound(msg, *text)
         elif prefix == '-':
@@ -68,7 +89,7 @@ class SoundBot(discord.Client):
             elif arg == 'stop':
                 await self.stop(msg)
 
-    async def play_sound(self, msg: discord.Message, name: str):
+    async def play_sound(self, msg: discord.Message, name: str, speed: int = None, volume: int = 100):
         try:
             sound = self.sounds[name]
         except KeyError:
@@ -86,9 +107,15 @@ class SoundBot(discord.Client):
         else:
             client = self.voice_client_in(msg.server)
 
+        speed = min(speed, 200)
+        speed = max(speed, 50)
+
         notifier = asyncio.Event()
 
-        player = client.create_ffmpeg_player(f'{sound_dir}/{sound}', after=lambda: notifier.set())
+        player = client.create_ffmpeg_player(f'{sound_dir}/{sound}',
+                                             options=f'-filter:a "atempo={speed/100}"' if speed is not None else None,
+                                             after=lambda: notifier.set())
+        player.volume = volume / 100
         player.start()
 
         await notifier.wait()
