@@ -33,7 +33,7 @@ class SoundBot(discord.Client):
             for name, hash in sounds.items():
                 self.sounds[name] = hash
 
-                log.info(f'Loaded {name}: {hash}')
+                # log.info(f'Loaded {name}: {hash}')
 
         except FileNotFoundError:
             log.info('No sounds file. Creating sound database file.')
@@ -52,6 +52,7 @@ class SoundBot(discord.Client):
         text = msg.content[1:].split()
 
         if prefix == '!':
+            log.info(f'{msg.author.name} ({msg.author.id}) playing sound "{text[0]}".')
             speed = None
             volume = None
 
@@ -70,26 +71,35 @@ class SoundBot(discord.Client):
                         break
                     except ValueError:
                         pass
+
             if volume is None:
-                volume = 100
+                volume = 50
+            if speed is None:
+                speed = 100
 
             await self.play_sound(msg, text[0], speed, volume)
         elif prefix == '+':
+            log.info(f'{msg.author.name} ({msg.author.id}) adding sound "{text[0]}".')
             await self.add_sound(msg, *text)
         elif prefix == '-':
+            log.info(f'{msg.author.name} ({msg.author.id}) removing sound "{text[0]}".')
             await self.remove_sound(msg, *text)
         elif prefix == '~':
+            log.info(f'{msg.author.name} ({msg.author.id}) renaming sound "{text[0]}".')
             await self.rename_sound(msg, *text)
         elif prefix == '$':
             arg = text[0]
             if arg == 'help':
+                log.info(f'{msg.author.name} ({msg.author.id}) getting help.')
                 await self.help(msg)
             elif arg == 'list':
+                log.info(f'{msg.author.name} ({msg.author.id}) listing sounds.')
                 await self.list(msg)
             elif arg == 'stop':
+                log.info(f'{msg.author.name} ({msg.author.id}) stopping playback.')
                 await self.stop(msg)
 
-    async def play_sound(self, msg: discord.Message, name: str, speed: int = None, volume: int = 100):
+    async def play_sound(self, msg: discord.Message, name: str, speed: int = 100, volume: int = 100):
         try:
             sound = self.sounds[name]
         except KeyError:
@@ -113,9 +123,10 @@ class SoundBot(discord.Client):
         notifier = asyncio.Event()
 
         player = client.create_ffmpeg_player(f'{sound_dir}/{sound}',
-                                             options=f'-filter:a "atempo={speed/100}"' if speed is not None else None,
+                                             options=f'-filter:a "atempo={speed/100}"' if speed != 100 else None,
                                              after=lambda: notifier.set())
         player.volume = volume / 100
+        log.info(f'Playing "{name}" at {speed}% speed, {volume}% volume.')
         player.start()
 
         await notifier.wait()
@@ -165,6 +176,7 @@ class SoundBot(discord.Client):
                         await self.send_message(msg.channel, f'Saved **{name}**.')
                         self._update_json()
                     except FileExistsError:
+                        log.info(f'Duplicate file with hash {filename} already exists.')
                         await self.send_message(msg.channel, f'Sound already exists.')
 
                 else:
@@ -177,6 +189,7 @@ class SoundBot(discord.Client):
             return
 
         sound = self.sounds.pop(name)
+        log.info(f'Removing {name}: {sound}.')
         os.remove(f'{sound_dir}/{sound}')
         await self.send_message(msg.channel, f'Removed **{name}**.')
         self._update_json()
@@ -189,6 +202,7 @@ class SoundBot(discord.Client):
             return
 
         self.sounds[new_name] = sound
+        log.info(f'Renaming "{name}" to "{new_name}"')
         await self.send_message(msg.channel, f'**{name}** renamed to **{new_name}**.')
         self._update_json()
 
@@ -238,6 +252,7 @@ class SoundBot(discord.Client):
         if not self.is_voice_connected(msg.server):
             return
         client = self.voice_client_in(msg.server)
+        log.info("Force stopping playback.")
         await client.disconnect()
 
     def _update_json(self):
