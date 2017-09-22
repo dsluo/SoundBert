@@ -20,6 +20,7 @@ class SoundBot(discord.Client):
         super().__init__(**options)
 
         self.sounds = {}
+        self.playing = {}
 
         if not os.path.isdir(sound_dir):
             log.debug(f'Sound directory "{sound_dir}" not found. Creating...')
@@ -32,9 +33,10 @@ class SoundBot(discord.Client):
             with open('sounds.json', 'r') as f:
                 sounds = json.load(f)
 
-            for name, hash in sounds.items():
-                log.debug(f'Registering sound "{name}" with hash {hash}.')
-                self.sounds[name] = hash
+            # for name, info in sounds.items():
+            #     log.debug(f'Registering sound "{name}" with hash {hash}.')
+            #     self.sounds[name] = info
+            self.sounds = dict(sounds)
 
         except FileNotFoundError:
 
@@ -42,8 +44,9 @@ class SoundBot(discord.Client):
             with open('sounds.json', 'w') as f:
                 f.write('{}')
 
-        except JSONDecodeError:
+        except JSONDecodeError as e:
             log.error('Malformed sounds database file (sounds.json).')
+            raise e
 
     async def on_message(self, msg: discord.Message):
         if len(msg.content) <= 1:
@@ -103,10 +106,14 @@ class SoundBot(discord.Client):
             elif arg == 'stop':
                 log.debug('Received stop playback command.')
                 await self.stop(msg)
+            elif arg == 'stat':
+                log.debug('Received stat command.')
+                await self.stat(msg, text[1])
 
     async def play_sound(self, msg: discord.Message, name: str, speed: int = 100, volume: int = 100):
         try:
             sound = self.sounds[name]
+            filename = sound['filename']
         except KeyError:
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
@@ -132,7 +139,7 @@ class SoundBot(discord.Client):
 
         notifier = asyncio.Event()
 
-        player = client.create_ffmpeg_player(f'{sound_dir}/{sound}',
+        player = client.create_ffmpeg_player(f'{sound_dir}/{filename}',
                                              options=f'-filter:a "atempo={speed/100}"' if speed != 100 else None,
                                              after=lambda: notifier.set())
         player.volume = volume / 100
@@ -140,6 +147,9 @@ class SoundBot(discord.Client):
 
         await notifier.wait()
         await client.disconnect()
+        sound['played'] += 1
+        self._update_json()
+        self.playing[msg.server.id] = name
 
     async def add_sound(self, msg: discord.Message, name: str, link: str = None):
         # Disallow duplicate names
@@ -177,7 +187,9 @@ class SoundBot(discord.Client):
                     try:
                         os.rename(f'{os.getcwd()}/tempsound', f'{sound_dir}/{filename}')
 
-                        self.sounds[name] = filename
+                        self.sounds[name] = {'filename': filename,
+                                             'played': 0,
+                                             'stopped': 0}
                         await self.send_message(msg.channel, f'Saved **{name}**.')
                         self._update_json()
                     except FileExistsError:
@@ -197,7 +209,8 @@ class SoundBot(discord.Client):
             return
 
         sound = self.sounds.pop(name)
-        os.remove(f'{sound_dir}/{sound}')
+        filename = sound['filename']
+        os.remove(f'{sound_dir}/{filename}')
         await self.send_message(msg.channel, f'Removed **{name}**.')
         self._update_json()
         log.info(f'{msg.author.username} ({msg.server.name}) removed "{name}".')
@@ -226,6 +239,7 @@ class SoundBot(discord.Client):
             '| ~<name> <new_name>     | Rename a sound                           |\n'
             '| $list                  | Print a list of all sounds               |\n'
             '| $stop                  | Force stop sound playback                |\n'
+            '| $stat                  | Get playback stats for a sound           |\n'
             '| $help                  | Print this message                       |\n'
             '+------------------------+------------------------------------------+\n'
             '```'
@@ -261,7 +275,23 @@ class SoundBot(discord.Client):
             return
         client = self.voice_client_in(msg.server)
         await client.disconnect()
-        log.info(f'{msg.author.username} ({msg.server.name}) stopped playback.')
+        name = self.playing[msg.server.id]
+        log.info(f'{msg.author.name} ({msg.server.name}) stopped playback of {name}.')
+        self.sounds[name]['stopped'] += 1
+        self._update_json()
+
+    async def stat(self, msg: discord.Message, name: str):
+        try:
+            sound = self.sounds[name]
+        except KeyError:
+            await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
+            return
+
+        played = sound['played']
+        stopped = sound['stopped']
+
+        resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
+        await self.send_message(msg.channel, resp)
 
     def _update_json(self):
         with open('sounds.json', 'w') as f:
