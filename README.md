@@ -16,12 +16,12 @@ _**TODO**_: how to actually run the bot
 
 ## Commands
 
-| Command                  | Function                   |
-| -------                  | --------                   |
-| `!<name>`                | Play a sound               |
-| `+<name> <link>`         | Add a new sound            |
-| `-<name>`                | Remove a sound             |
-| `~<name> <new_name>`     | Rename a sound             |
-| `$list`                  | Print a list of all sounds |
-| `$stop`                  | Force stop sound playback  |
-| `$help`                  | Print help message         |
+| Command                  | Function                                 |
+| -------                  | --------                                 |
+| `!<name> [vXX] [sYY]`    | Play a sound at XX% volume and YY% speed |
+| `+<name> <link>`         | Add a new sound                          |
+| `-<name>`                | Remove a sound                           |
+| `~<name> <new_name>`     | Rename a sound                           |
+| `$list`                  | Print a list of all sounds               |
+| `$stop`                  | Force stop sound playback                |
+| `$help`                  | Print help message                       |
