@@ -53,8 +53,8 @@ class SoundBot(discord.Client):
         if len(msg.content) <= 1:
             return
 
-        prefix = msg.content[0]
-        text = msg.content[1:].split()
+        prefix = msg.content[0].lower()
+        text = msg.content.lower()[1:].split()
 
         if prefix == '!':
             log.debug('Received sound command.')
