@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import math
 import os
 from collections import OrderedDict
 from json import JSONDecodeError
@@ -109,6 +110,9 @@ class SoundBot(discord.Client):
             elif arg == 'stat':
                 log.debug('Received stat command.')
                 await self.stat(msg, text[1])
+            elif arg == 'stats':
+                log.debug('Received stats command.')
+                await self.stats(msg)
 
     async def play_sound(self, msg: discord.Message, name: str, speed: int = 100, volume: int = 100):
         try:
@@ -292,6 +296,39 @@ class SoundBot(discord.Client):
 
         resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
         await self.send_message(msg.channel, resp)
+
+    async def stats(self, msg: discord.Message):
+        name_length = len(max(self.sounds, key=lambda name: len(name)))
+        played_max = max(self.sounds.items(), key=lambda sound: sound[1]['played'])[1]['played']
+        stopped_max = max(self.sounds.items(), key=lambda sound: sound[1]['stopped'])[1]['stopped']
+
+        played_length = int(math.log10(played_max)) + 1
+        stopped_length = int(math.log10(stopped_max)) + 1
+
+        # +--------------------------------------------+
+        # | Sound Stats                                |
+        # +-------------------------+--------+---------+
+        # | Sound                   | Played | Stopped |
+        # +-------------------------+--------+---------+
+        # | krustykrabtrainingvideo |      3 |       3 |
+        # | krustykrabtrainingvideo |      3 |       3 |
+        # | krustykrabtrainingvideo |      3 |       3 |
+        # | krustykrabtrainingvideo |      3 |       3 |
+        # | krustykrabtrainingvideo |      3 |       3 |
+        # | krustykrabtrainingvideo |      3 |       3 |
+        # +-------------------------+--------+---------+
+
+        sound_rows = ''.join(
+            (f'| {sound:<{name_length}} | {info["played"]:<{played_length}} | {info["stopped"]:<{stopped_length}} |\n'
+             for sound, info in sorted(self.sounds.items())))
+        resp = ('```\n'
+                f'+{"":-<{name_length + played_length + stopped_length + 8}}+\n'
+                f'| Sound Stats {" ":<{name_length - 3}}|\n'
+                f'+{"":-<{name_length + 2}}+{"":->{played_length + 2}}+{"":->{stopped_length + 2}}+\n'
+                '```')
+
+        await self.send_message(msg.channel, resp)
+        await self.send_message(msg.channel, f'```\n{sound_rows}```')
 
     def _update_json(self):
         with open('sounds.json', 'w') as f:
