@@ -2,13 +2,12 @@ import asyncio
 import hashlib
 import json
 import logging
-import math
 import os
 from collections import OrderedDict
-from json import JSONDecodeError
 
 import aiohttp
 import discord
+from motor import motor_asyncio
 
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
@@ -17,10 +16,11 @@ sound_dir = os.getcwd() + '/sounds'
 
 
 class SoundBot(discord.Client):
-    def __init__(self, **options):
+    def __init__(self, config, **options):
         super().__init__(**options)
 
-        self.sounds = {}
+        self.token = config['token']
+
         self.playing = {}
 
         if not os.path.isdir(sound_dir):
@@ -29,25 +29,15 @@ class SoundBot(discord.Client):
         else:
             log.debug(f'Using existing sound directory "{sound_dir}". ')
 
-        try:
-            log.debug('Reading sounds database...')
-            with open('sounds.json', 'r') as f:
-                sounds = json.load(f)
+        log.debug('Initializing Database.')
+        database_client = motor_asyncio.AsyncIOMotorClient(config['db_uri'])
+        self.database = database_client[config['db_name']]
 
-            # for name, info in sounds.items():
-            #     log.debug(f'Registering sound "{name}" with hash {hash}.')
-            #     self.sounds[name] = info
-            self.sounds = dict(sounds)
-
-        except FileNotFoundError:
-
-            log.debug('Sound database not found. Creating new empty database.')
-            with open('sounds.json', 'w') as f:
-                f.write('{}')
-
-        except JSONDecodeError as e:
-            log.error('Malformed sounds database file (sounds.json).')
-            raise e
+    def run(self, *args, **kwargs):
+        if len(args) == 2:
+            super(SoundBot, self).run(*args, **kwargs)
+        else:
+            super(SoundBot, self).run(self.token, **kwargs)
 
     async def on_message(self, msg: discord.Message):
         if len(msg.content) <= 1:
@@ -110,15 +100,13 @@ class SoundBot(discord.Client):
             elif arg == 'stat':
                 log.debug('Received stat command.')
                 await self.stat(msg, text[1])
-            elif arg == 'stats':
-                log.debug('Received stats command.')
-                await self.stats(msg)
 
     async def play_sound(self, msg: discord.Message, name: str, speed: int = 100, volume: int = 100):
         try:
-            sound = self.sounds[name]
+            # sound = self.sounds[name]
+            sound = await self.database.sounds.find_one({'name': name})
             filename = sound['filename']
-        except KeyError:
+        except (KeyError, TypeError):
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
 
@@ -151,13 +139,14 @@ class SoundBot(discord.Client):
 
         await notifier.wait()
         await client.disconnect()
-        sound['played'] += 1
-        self._update_json()
+        # sound['played'] += 1
+        await self.database.sounds.update_one({'name': name}, {'$inc': {'played': 1}})
         self.playing[msg.server.id] = name
 
     async def add_sound(self, msg: discord.Message, name: str, link: str = None):
+        num_sounds = await self.database.sounds.count({'name': name})
         # Disallow duplicate names
-        if name in self.sounds.keys():
+        if num_sounds > 0:
             await self.send_message(msg.channel, f'Sound named {name} already exists.')
             return
 
@@ -191,16 +180,19 @@ class SoundBot(discord.Client):
                     try:
                         os.rename(f'{os.getcwd()}/tempsound', f'{sound_dir}/{filename}')
 
-                        self.sounds[name] = {'filename': filename,
-                                             'played': 0,
-                                             'stopped': 0}
+                        # self.sounds[name] = {'filename': filename,
+                        #                      'played': 0,
+                        #                      'stopped': 0}
+                        sound = {'name': name,
+                                 'filename': filename,
+                                 'played': 0,
+                                 'stopped': 0}
+                        await self.database.sounds.insert_one(sound)
                         await self.send_message(msg.channel, f'Saved **{name}**.')
-                        self._update_json()
+                        log.info(f'{msg.author.name} ({msg.server.name}) added "{name}" from "{link}".')
                     except FileExistsError:
                         await self.send_message(msg.channel, f'Sound already exists.')
                         log.debug(f'File with hash "{filename}" already exists. Aborting.')
-                        log.info(
-                            f'{msg.author.username} ({msg.server.name}) added "{name}" from "{link}".')
 
                 else:
                     await self.send_message(msg.channel, f'Error while downloading: {resp.status}: {resp.reason}.')
@@ -208,28 +200,29 @@ class SoundBot(discord.Client):
                 await resp.release()
 
     async def remove_sound(self, msg: discord.Message, name: str):
-        if name not in self.sounds.keys():
+        sound = await self.database.sounds.find_one_and_delete({'name': name})
+        if sound is None:
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
 
-        sound = self.sounds.pop(name)
+        # sound = self.sounds.pop(name)
         filename = sound['filename']
         os.remove(f'{sound_dir}/{filename}')
         await self.send_message(msg.channel, f'Removed **{name}**.')
-        self._update_json()
-        log.info(f'{msg.author.username} ({msg.server.name}) removed "{name}".')
+        log.info(f'{msg.author.name} ({msg.server.name}) removed "{name}".')
 
     async def rename_sound(self, msg: discord.Message, name: str, new_name: str):
-        try:
-            sound = self.sounds.pop(name)
-        except KeyError:
+        sound = await self.database.sounds.find_one_and_update({'name': name}, {'$set': {'name': new_name}})
+        # try:
+        #     sound = self.sounds.pop(name)
+        # except KeyError:
+        if sound is None:
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
 
-        self.sounds[new_name] = sound
+        # self.sounds[new_name] = sound
         await self.send_message(msg.channel, f'**{name}** renamed to **{new_name}**.')
-        self._update_json()
-        log.info(f'{msg.author.username} ({msg.server.name}) renamed "{name}" to "{new_name}".')
+        log.info(f'{msg.author.name} ({msg.server.name}) renamed "{name}" to "{new_name}".')
 
     async def help(self, msg: discord.Message):
         help_msg = (
@@ -252,24 +245,25 @@ class SoundBot(discord.Client):
         await self.send_message(msg.channel, help_msg)
 
     async def list(self, msg: discord.Message):
-        if len(self.sounds) == 0:
+        sounds = await self.database.sounds.find().sort('name').to_list(None)
+        if len(sounds) == 0:
             message = 'No sounds yet. Add one with `+<name> <link>`!'
         else:
-            sorted_sounds = sorted(self.sounds.keys())
             split = OrderedDict()
-            for sound in sorted_sounds:
-                first = sound[0].lower()
+            for sound in sounds:
+                name = sound['name']
+                first = name[0].lower()
                 if first not in 'abcdefghijklmnopqrstuvwxyz':
                     first = '#'
                 if first not in split.keys():
-                    split[first] = [sound]
+                    split[first] = [name]
                 else:
-                    split[first].append(sound)
+                    split[first].append(name)
 
             message = '**Sounds**\n'
 
-            for letter, sounds in split.items():
-                line = f'**`{letter}`**: {", ".join(sounds)}\n'
+            for letter, sounds_ in split.items():
+                line = f'**`{letter}`**: {", ".join(sounds_)}\n'
                 message += line
 
         await self.send_message(msg.channel, message)
@@ -277,17 +271,19 @@ class SoundBot(discord.Client):
     async def stop(self, msg: discord.Message):
         if not self.is_voice_connected(msg.server):
             return
+
         client = self.voice_client_in(msg.server)
         await client.disconnect()
+
         name = self.playing[msg.server.id]
+        await self.database.sounds.update_one({'name': name}, {'$inc': {'stopped': 1}})
+
         log.info(f'{msg.author.name} ({msg.server.name}) stopped playback of {name}.')
-        self.sounds[name]['stopped'] += 1
-        self._update_json()
 
     async def stat(self, msg: discord.Message, name: str):
-        try:
-            sound = self.sounds[name]
-        except KeyError:
+        sound = await self.database.sounds.find_one({'name': name})
+
+        if sound is None:
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
 
@@ -297,51 +293,15 @@ class SoundBot(discord.Client):
         resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
         await self.send_message(msg.channel, resp)
 
-    async def stats(self, msg: discord.Message):
-        name_length = len(max(self.sounds, key=lambda name: len(name)))
-        played_max = max(self.sounds.items(), key=lambda sound: sound[1]['played'])[1]['played']
-        stopped_max = max(self.sounds.items(), key=lambda sound: sound[1]['stopped'])[1]['stopped']
-
-        played_length = int(math.log10(played_max)) + 1
-        stopped_length = int(math.log10(stopped_max)) + 1
-
-        # +--------------------------------------------+
-        # | Sound Stats                                |
-        # +-------------------------+--------+---------+
-        # | Sound                   | Played | Stopped |
-        # +-------------------------+--------+---------+
-        # | krustykrabtrainingvideo |      3 |       3 |
-        # | krustykrabtrainingvideo |      3 |       3 |
-        # | krustykrabtrainingvideo |      3 |       3 |
-        # | krustykrabtrainingvideo |      3 |       3 |
-        # | krustykrabtrainingvideo |      3 |       3 |
-        # | krustykrabtrainingvideo |      3 |       3 |
-        # +-------------------------+--------+---------+
-
-        sound_rows = ''.join(
-            (f'| {sound:<{name_length}} | {info["played"]:<{played_length}} | {info["stopped"]:<{stopped_length}} |\n'
-             for sound, info in sorted(self.sounds.items())))
-        resp = ('```\n'
-                f'+{"":-<{name_length + played_length + stopped_length + 8}}+\n'
-                f'| Sound Stats {" ":<{name_length - 3}}|\n'
-                f'+{"":-<{name_length + 2}}+{"":->{played_length + 2}}+{"":->{stopped_length + 2}}+\n'
-                '```')
-
-        await self.send_message(msg.channel, resp)
-        await self.send_message(msg.channel, f'```\n{sound_rows}```')
-
-    def _update_json(self):
-        with open('sounds.json', 'w') as f:
-            json.dump(self.sounds, f)
-
 
 def main():
     log.debug('Initializing Soundbot...')
-    bot = SoundBot()
 
-    log.debug('Loading token...')
-    with open('token.txt', 'r') as f:
-        token = f.read()
+    log.debug('Loading config...')
+    with open('config.json', 'r') as f:
+        config = json.load(f)
+
+    bot = SoundBot(config)
 
     log.info('Starting bot...')
-    bot.run(token)
+    bot.run()
