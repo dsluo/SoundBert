@@ -128,18 +128,25 @@ class SoundBot(discord.Client):
             client = self.voice_client_in(msg.server)
             client.move_to(channel)
 
-        notifier = asyncio.Event()
+        play = asyncio.Event()
+        stop = asyncio.Event()
+        self.playing[msg.server.id] = (name, play, stop)
 
         player = client.create_ffmpeg_player(f'{sound_dir}/{filename}',
                                              options=f'-filter:a "atempo={speed/100}"' if speed != 100 else None,
-                                             after=lambda: notifier.set())
+                                             after=lambda: play.set())
         player.volume = volume / 100
+
         player.start()
 
-        await notifier.wait()
+        await play.wait()
         await client.disconnect()
+        stop.set()
+        try:
+            self.playing.pop(msg.server.id)
+        except KeyError:
+            pass
         await self.database.sounds.update_one({'name': name}, {'$inc': {'played': 1}})
-        self.playing[msg.server.id] = name
 
     async def add_sound(self, msg: discord.Message, name: str, link: str = None):
         num_sounds = await self.database.sounds.count({'name': name})
@@ -259,13 +266,10 @@ class SoundBot(discord.Client):
         await self.send_message(msg.channel, message)
 
     async def stop(self, msg: discord.Message):
-        if not self.is_voice_connected(msg.server):
-            return
 
-        client = self.voice_client_in(msg.server)
-        await client.disconnect()
-
-        name = self.playing[msg.server.id]
+        name, play, stop = self.playing.pop(msg.server.id)
+        play.set()
+        await stop.wait()
         await self.database.sounds.update_one({'name': name}, {'$inc': {'stopped': 1}})
 
         log.info(f'{msg.author.name} ({msg.server.name}) stopped playback of {name}.')
