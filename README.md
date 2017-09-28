@@ -1,4 +1,4 @@
-# SoundBot
+# SoundBert
 
 A soundboard for [discord](https://discordapp.com/).
 
@@ -21,7 +21,7 @@ A soundboard for [discord](https://discordapp.com/).
       "db_name": "<name of database to use>"
     }
     ```
-4. Activate the virtualenv, and run the bot with `nohup python3 -m soundbot &`
+4. Activate the virtualenv, and run the bot with `nohup python3 -m soundbert &`
 
 ## Commands
 
