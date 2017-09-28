@@ -103,7 +103,6 @@ class SoundBot(discord.Client):
 
     async def play_sound(self, msg: discord.Message, name: str, speed: int = 100, volume: int = 100):
         try:
-            # sound = self.sounds[name]
             sound = await self.database.sounds.find_one({'name': name})
             filename = sound['filename']
         except (KeyError, TypeError):
@@ -139,7 +138,6 @@ class SoundBot(discord.Client):
 
         await notifier.wait()
         await client.disconnect()
-        # sound['played'] += 1
         await self.database.sounds.update_one({'name': name}, {'$inc': {'played': 1}})
         self.playing[msg.server.id] = name
 
@@ -180,9 +178,6 @@ class SoundBot(discord.Client):
                     try:
                         os.rename(f'{os.getcwd()}/tempsound', f'{sound_dir}/{filename}')
 
-                        # self.sounds[name] = {'filename': filename,
-                        #                      'played': 0,
-                        #                      'stopped': 0}
                         sound = {'name': name,
                                  'filename': filename,
                                  'played': 0,
@@ -205,7 +200,6 @@ class SoundBot(discord.Client):
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
 
-        # sound = self.sounds.pop(name)
         filename = sound['filename']
         os.remove(f'{sound_dir}/{filename}')
         await self.send_message(msg.channel, f'Removed **{name}**.')
@@ -213,14 +207,10 @@ class SoundBot(discord.Client):
 
     async def rename_sound(self, msg: discord.Message, name: str, new_name: str):
         sound = await self.database.sounds.find_one_and_update({'name': name}, {'$set': {'name': new_name}})
-        # try:
-        #     sound = self.sounds.pop(name)
-        # except KeyError:
         if sound is None:
             await self.send_message(msg.channel, f'Sound **{name}** does not exist.')
             return
 
-        # self.sounds[new_name] = sound
         await self.send_message(msg.channel, f'**{name}** renamed to **{new_name}**.')
         log.info(f'{msg.author.name} ({msg.server.name}) renamed "{name}" to "{new_name}".')
 
