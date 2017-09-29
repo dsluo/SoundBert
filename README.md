@@ -31,7 +31,8 @@ A soundboard for [discord](https://discordapp.com/).
 | `+<name> <link>`         | Add a new sound                              |
 | `-<name>`                | Remove a sound                               |
 | `~<name> <new_name>`     | Rename a sound                               |
-| `$list`                  | Print a list of all sounds                   |
+| `$rand`                  | Play a random sound                          |
 | `$stop`                  | Force stop sound playback                    |
+| `$list`                  | Print a list of all sounds                   |
 | `$stat <name>`           | Get playback stats for a sound               |
 | `$help`                  | Print help message                           |
