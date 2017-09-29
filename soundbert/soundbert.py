@@ -100,6 +100,9 @@ class SoundBot(discord.Client):
             elif arg == 'stat':
                 log.debug('Received stat command.')
                 await self.stat(msg, text[1])
+            elif arg == 'rand':
+                log.debug('Received rand command.')
+                await self.rand(msg)
 
     async def play_sound(self, msg: discord.Message, name: str, speed: int = 100, volume: int = 100):
         try:
@@ -286,6 +289,13 @@ class SoundBot(discord.Client):
 
         resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
         await self.send_message(msg.channel, resp)
+
+    async def rand(self, msg: discord.Message):
+        aggregation = self.database.sounds.aggregate([{'$sample': {'size': 1}}])
+        await aggregation.fetch_next
+        sound = aggregation.next_object()
+        print(sound)
+        await self.play_sound(msg, sound['name'])
 
 
 def main():
