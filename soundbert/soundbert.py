@@ -40,23 +40,22 @@ class SoundBert(commands.Bot):
         database_client = motor_asyncio.AsyncIOMotorClient(db_uri)
         database = database_client[db_name]
 
-        self.add_cog(SoundCog(sound_dir, database))
+        self.add_cog(Sounds(sound_dir, database))
 
 
-class SoundCog:
+# noinspection PyIncorrectDocstring
+class Sounds:
     def __init__(self, sound_dir, database):
         self.sound_dir = sound_dir
         self.database = database
 
         self.playing = {}
 
-    @commands.command(
-        aliases=['!']
-    )
+    @commands.command(aliases=['!'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
-        Play a sound
-        :param name: The name of the sound
+        Play a sound.
+        :param name: The sound to play.
         :param args: The volume/speed of playback, in format v[volume%] s[speed%]. e.g. v50 s100. Both are optional.
         """
 
@@ -139,6 +138,11 @@ class SoundCog:
 
     @commands.command()
     async def add(self, ctx: commands.Context, name: str, link: str = None):
+        """
+        Add a new sound.
+        :param name: The name of the sound to add.
+        :param link: The download link to the sound. Can be omitted if command invocation has an attachment.
+        """
         num_sounds = await self.database.sounds.count({'name': name})
 
         # Disallow duplicate names
@@ -193,8 +197,12 @@ class SoundCog:
                         await ctx.send(f'Error while downloading: {resp.status}: {resp.reason}.')
                     await resp.release()
 
-    @commands.command()
+    @commands.command(aliases=['del'])
     async def remove(self, ctx: commands.Context, name: str):
+        """
+        Remove a sound.
+        :param name: The sound to remove.
+        """
         sound = await self.database.sounds.find_one_and_delete({'name': name})
         if sound is None:
             await ctx.send(f'Sound **{name}** does not exist.')
@@ -208,6 +216,11 @@ class SoundCog:
 
     @commands.command()
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
+        """
+        Rename a sound.
+        :param name: The sound to rename.
+        :param new_name: The new name of the sound.
+        """
         sound = await self.database.sounds.find_one_and_update({'name': name}, {'$set': {'name': new_name}})
         if sound is None:
             await ctx.send(f'Sound **{name}** does not exist.')
@@ -218,6 +231,9 @@ class SoundCog:
 
     @commands.command()
     async def list(self, ctx: commands.Context):
+        """
+        List all sounds.
+        """
         sounds = await self.database.sounds.find().sort('name').to_list(None)
         if len(sounds) == 0:
             message = 'No sounds yet. Add one with `+<name> <link>`!'
@@ -243,7 +259,9 @@ class SoundCog:
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
-
+        """
+        Stop playback of the current sound.
+        """
         name, play, stop = self.playing.pop(ctx.guild.id)
         play.set()
         await stop.wait()
@@ -251,6 +269,10 @@ class SoundCog:
 
     @commands.command()
     async def stat(self, ctx: commands.Context, name: str):
+        """
+        Get stats of a sound.
+        :param name: The sound to get stats for.
+        """
         sound = await self.database.sounds.find_one({'name': name})
 
         if sound is None:
@@ -266,6 +288,10 @@ class SoundCog:
 
     @commands.command()
     async def rand(self, ctx: commands.Context, *, args=None):
+        """
+        Play a random sound.
+        :param args: The volume/speed of playback, in format v[volume%] s[speed%]. e.g. v50 s100. Both are optional.
+        """
         aggregation = self.database.sounds.aggregate([{'$sample': {'size': 1}}])
         await aggregation.fetch_next
         sound = aggregation.next_object()
