@@ -18,12 +18,6 @@ class Sounds:
 
         self.playing = {}
 
-    # @commands.command()
-    # async def test(self, ctx, *, sql):
-    #     async with self.pool.acquire() as conn:
-    #         result = await conn.fetchrow(sql)
-    #     await ctx.send(str(dict(result)))
-
     @commands.command(
         aliases=['!', 'soundboard', 'soundbot', 'soundbert', 'sb']
     )
