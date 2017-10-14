@@ -8,7 +8,7 @@ import discord
 from discord import VoiceClient
 from discord.ext import commands
 
-from soundbert.utils.reactions import yes, no
+from soundbert.cogs.utils.reactions import yes, no
 
 
 class Sounds:
