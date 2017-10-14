@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
-class SoundBert(commands.Bot):
+class SoundBert(commands.AutoShardedBot):
     def __init__(self,
                  command_prefix,
                  sound_dir,
