@@ -19,7 +19,7 @@ class Sounds:
         self.playing = {}
 
     @commands.command(
-        aliases=['!', 'soundboard', 'soundbot', 'soundbert', 'sb']
+        aliases=['soundboard', 'soundbot', 'soundbert', 'sb']
     )
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
@@ -105,7 +105,9 @@ class Sounds:
         async with self.pool.acquire() as conn:
             await conn.execute('UPDATE sounds SET played = played + 1 WHERE name = $1', name)
 
-    @commands.command()
+    @play.command(
+        aliases=['a']
+    )
     async def add(self, ctx: commands.Context, name: str, link: str = None):
         """
         Add a new sound.
@@ -166,8 +168,10 @@ class Sounds:
                         await ctx.send(f'Error while downloading: {resp.status}: {resp.reason}.')
                     await resp.release()
 
-    @commands.command(aliases=['del'])
-    async def remove(self, ctx: commands.Context, name: str):
+    @play.command(
+        aliases=['del', 'd']
+    )
+    async def delete(self, ctx: commands.Context, name: str):
         """
         Remove a sound.
         :param name: The sound to remove.
@@ -188,7 +192,9 @@ class Sounds:
         # await ctx.send(f'Removed **{name}**.')
         await yes(ctx)
 
-    @commands.command()
+    @play.command(
+        aliases=['r']
+    )
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
         Rename a sound.
@@ -208,7 +214,9 @@ class Sounds:
         await yes(ctx)
         # await ctx.send(f'**{name}** renamed to **{new_name}**.')
 
-    @commands.command()
+    @play.command(
+        aliases=['l']
+    )
     async def list(self, ctx: commands.Context):
         """
         List all sounds.
@@ -237,7 +245,7 @@ class Sounds:
 
         await ctx.send(message)
 
-    @commands.command()
+    @play.command()
     async def stop(self, ctx: commands.Context):
         """
         Stop playback of the current sound.
@@ -248,7 +256,7 @@ class Sounds:
         async with self.pool.acquire() as conn:
             await conn.execute('UPDATE sounds SET played = played + 1 WHERE name = $1', name)
 
-    @commands.command()
+    @play.command()
     async def stat(self, ctx: commands.Context, name: str):
         """
         Get stats of a sound.
@@ -268,7 +276,9 @@ class Sounds:
         resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
         await ctx.send(resp)
 
-    @commands.command()
+    @play.command(
+        aliases='r'
+    )
     async def rand(self, ctx: commands.Context, *, args=None):
         """
         Play a random sound.
