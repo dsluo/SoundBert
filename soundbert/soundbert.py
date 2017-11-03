@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import os
@@ -23,9 +22,7 @@ class SoundBert(commands.AutoShardedBot):
         if not os.path.isdir(sound_dir):
             os.mkdir(sound_dir)
 
-        loop = asyncio.get_event_loop()
-
-        self.db_pool = loop.run_until_complete(asyncpg.create_pool(db_uri))
+        self.db_pool = self.loop.run_until_complete(asyncpg.create_pool(db_uri))
 
         self.add_cog(Sounds(sound_dir, self))
 
