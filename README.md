@@ -7,7 +7,7 @@ A soundboard for [discord](https://discordapp.com/).
 * Python3.6+
 * `libopus0`
 * `ffmpeg`
-* MongoDB (preferably locally)
+* PostgresQL
 
 ## Setup and Running
 
@@ -17,11 +17,11 @@ A soundboard for [discord](https://discordapp.com/).
     ```json
     {
       "token": "<discord token>",
-      "db_uri": "<mongodb uri>",
-      "db_name": "<name of database to use>"
+      "db_uri": "<postgres uri>",
     }
     ```
-4. Activate the virtualenv, and run the bot with `nohup python3 -m soundbert &`
+4. Set up PostgresQL database (TODO: how to do that).    
+5. Activate the virtualenv, and run the bot with `nohup python3 -m soundbert &`
 
 ## Commands
 
