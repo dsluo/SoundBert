@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from discord.ext import commands
@@ -9,6 +10,8 @@ if TYPE_CHECKING:
 class Info:
     def __init__(self, bot: 'SoundBert'):
         self.bot = bot
+
+        self.startup = datetime.now()
 
     @commands.command()
     async def invite(self, ctx: commands.Context):
@@ -26,6 +29,10 @@ class Info:
         await ctx.send('SoundBert by davidsluo\n'
                        'Written in Python using discord.py\n'
                        'https://github.com/davidsluo/SoundBert/')
+
+    @commands.command()
+    async def uptime(self, ctx:commands.Context):
+        await ctx.send(datetime.now() - self.startup)
 
 
 def setup(bot):
