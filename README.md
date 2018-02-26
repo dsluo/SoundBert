@@ -7,7 +7,7 @@ A soundboard for [discord](https://discordapp.com/).
 * Python3.6+
 * `libopus0`
 * `ffmpeg`
-* PostgresQL
+* PostgreSQL
 
 ## Setup and Running
 
@@ -17,22 +17,22 @@ A soundboard for [discord](https://discordapp.com/).
     ```json
     {
       "token": "<discord token>",
-      "db_uri": "<postgres uri>",
+      "db_uri": "<postgres uri>"
     }
     ```
 4. Set up PostgresQL database (TODO: how to do that).    
-5. Activate the virtualenv, and run the bot with `nohup python3 -m soundbert &`
+5. Activate the virtualenv, and run the bot with `launcher config.json`
 
 ## Commands
 
-| Command                  | Function                                     |
-| ------------------------ | -------------------------------------------- |
-| `!<name> [vXX] [sYY]`    | Play a sound at `XX%` volume and `YY%` speed |
-| `+<name> <link>`         | Add a new sound                              |
-| `-<name>`                | Remove a sound                               |
-| `~<name> <new_name>`     | Rename a sound                               |
-| `$rand`                  | Play a random sound                          |
-| `$stop`                  | Force stop sound playback                    |
-| `$list`                  | Print a list of all sounds                   |
-| `$stat <name>`           | Get playback stats for a sound               |
-| `$help`                  | Print help message                           |
+| Command                         | Function                                     |
+| ------------------------------- | -------------------------------------------- |
+| `!play <name> [vXX] [sYY]`      | Play a sound at `XX%` volume and `YY%` speed |
+| `!add <name> <link>`            | Add a new sound                              |
+| `!delete <name>`                | Remove a sound                               |
+| `!rename <name> <new_name>`     | Rename a sound                               |
+| `!rand`                         | Play a random sound                          |
+| `!stop`                         | Force stop sound playback                    |
+| `!list`                         | Print a list of all sounds                   |
+| `!stat <name>`                  | Get playback stats for a sound               |
+| `!help`                         | Print help message                           |
