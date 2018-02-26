@@ -31,8 +31,17 @@ class Info:
                        'https://github.com/davidsluo/SoundBert/')
 
     @commands.command()
-    async def uptime(self, ctx:commands.Context):
-        await ctx.send(datetime.now() - self.startup)
+    async def uptime(self, ctx: commands.Context):
+        time = datetime.now() - self.startup
+
+        days = time.days
+        minutes, seconds = divmod(time.seconds, 60)
+        hours, minutes = divmod(minutes, 60)
+        await ctx.send('Uptime: '
+                       f'**{days}** day{"" if days == 1 else "s"} '
+                       f'**{hours}** hour{"" if hours == 1 else "s"} '
+                       f'**{minutes}** minute{"" if hours == 1 else "s"} '
+                       f'**{seconds}** second{"" if hours == 1 else "s"}.')
 
 
 def setup(bot):
