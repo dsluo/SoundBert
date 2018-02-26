@@ -39,7 +39,7 @@ class SoundBoard:
             filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name.lower())
 
         if filename is None:
-            raise commands.BadArgument(f'Sound `{filename}` not found.')
+            raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
         file = self.sound_path / filename
 
