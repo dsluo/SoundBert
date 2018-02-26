@@ -3,6 +3,8 @@ import logging
 import asyncpg
 from discord.ext import commands
 
+from cogs.utils.reactions import no
+
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
@@ -25,3 +27,9 @@ class SoundBert(commands.Bot):
 
     def run(self):
         super(SoundBert, self).run(self.config['token'])
+
+    async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
+        if len(exception.args) > 0:
+            await ctx.send(exception.args[0])
+        else:
+            await no(ctx)
