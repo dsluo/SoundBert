@@ -20,7 +20,7 @@ A soundboard for [discord](https://discordapp.com/).
       "db_uri": "<postgres uri>"
     }
     ```
-4. Set up PostgresQL database (TODO: how to do that).    
+4. Set up PostgresQL database.
 5. Activate the virtualenv, and run the bot with `launcher config.json`
 
 ## Commands
@@ -36,3 +36,8 @@ A soundboard for [discord](https://discordapp.com/).
 | `!list`                         | Print a list of all sounds                   |
 | `!stat <name>`                  | Get playback stats for a sound               |
 | `!help`                         | Print help message                           |
+
+## TODO
+
+* use postgres native user authentication instead of user+password
+* run bot using service
