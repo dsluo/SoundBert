@@ -36,7 +36,7 @@ class SoundBoard:
             raise commands.BadArgument('Invalid sound name.')
 
         async with self.bot.pool.acquire() as conn:
-            filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name)
+            filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name.lower())
 
         if filename is None:
             raise commands.BadArgument(f'Sound `{filename}` not found.')
@@ -109,7 +109,7 @@ class SoundBoard:
         """
         # Disallow duplicate names
         async with self.bot.pool.acquire() as conn:
-            exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name)
+            exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name.lower())
 
         if exists:
             raise commands.BadArgument(f'Sound named `{name}` already exists.')
@@ -146,7 +146,7 @@ class SoundBoard:
 
                             async with self.bot.pool.acquire() as conn:
                                 await conn.execute('INSERT INTO sounds(name, filename) VALUES ($1, $2)',
-                                                   name, filename)
+                                                   name.lower(), filename)
                             await yes(ctx)
                         except FileExistsError:
                             raise commands.BadArgument('Sound already exists.')
@@ -169,7 +169,7 @@ class SoundBoard:
         """
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
-                filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name)
+                filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name.lower())
                 if filename is None:
                     raise commands.BadArgument(f'Sound **{name}** does not exist.')
                 else:
@@ -191,11 +191,11 @@ class SoundBoard:
         """
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
-                exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name)
+                exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name.lower())
                 if not exists:
                     raise commands.BadArgument(f'Sound **{name}** does not exist.')
                 else:
-                    await conn.execute('UPDATE sounds SET name = $2 WHERE name = $1', name, new_name)
+                    await conn.execute('UPDATE sounds SET name = $2 WHERE name = $1', name.lower(), new_name.lower())
 
         await yes(ctx)
 
@@ -236,7 +236,7 @@ class SoundBoard:
         name = await self.playing.pop(ctx.guild.id)
 
         async with self.bot.pool.acquire() as conn:
-            await conn.execute('UPDATE sounds SET stopped = stopped + 1 WHERE name = $1', name)
+            await conn.execute('UPDATE sounds SET stopped = stopped + 1 WHERE name = $1', name.lower())
 
     @commands.command()
     async def stat(self, ctx: commands.Context, name: str):
@@ -246,7 +246,7 @@ class SoundBoard:
         :param name: The sound to get stats for.
         """
         async with self.bot.pool.acquire() as conn:
-            sound = await conn.fetchval('SELECT (played, stopped) FROM sounds WHERE name = $1', name)
+            sound = await conn.fetchval('SELECT (played, stopped) FROM sounds WHERE name = $1', name.lower())
 
         if sound is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
