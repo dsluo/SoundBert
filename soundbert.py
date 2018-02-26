@@ -17,7 +17,7 @@ class SoundBert(commands.Bot):
 
         extensions = [
             'cogs.soundboard',
-            # 'cogs.info'
+            'cogs.info'
         ]
 
         for ext in extensions:
