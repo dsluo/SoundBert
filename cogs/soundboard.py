@@ -23,9 +23,15 @@ class SoundBoard:
         self.playing = {}
 
     @commands.command(
-        aliases=['p']
+        aliases=['!', 'p']
     )
     async def play(self, ctx: commands.Context, name: str, *, args=None):
+        """
+        Play a sound.
+
+        :param name: The name of the sound to play.
+        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100.
+        """
         if not name:
             raise commands.BadArgument('Invalid sound name.')
 
@@ -91,8 +97,16 @@ class SoundBoard:
         self.playing[ctx.guild.id] = coro
         vclient.play(source=source, after=wrapper)
 
-    @commands.command()
+    @commands.command(
+        aliases=['+', 'a']
+    )
     async def add(self, ctx: commands.Context, name: str, link: str = None):
+        """
+        Add a new sound to the soundboard.
+
+        :param name: The name of the new sound.
+        :param link: Download link to new sound. If omitted, command must be called in the comment of an attachment.
+        """
         # Disallow duplicate names
         async with self.bot.pool.acquire() as conn:
             exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name)
@@ -144,8 +158,15 @@ class SoundBoard:
                     # probably not needed because context manager
                     # await resp.release()
 
-    @commands.command()
+    @commands.command(
+        aliases=['-', 'd', 'del']
+    )
     async def delete(self, ctx: commands.Context, name: str):
+        """
+        Delete a sound.
+
+        :param name: The name of the sound to delete.
+        """
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
                 filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name)
@@ -158,8 +179,16 @@ class SoundBoard:
         file.unlink()
         await yes(ctx)
 
-    @commands.command()
+    @commands.command(
+        aliases=['~', 'r']
+    )
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
+        """
+        Rename a sound.
+
+        :param name: The name of the sound to rename.
+        :param new_name: The new name.
+        """
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
                 exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name)
@@ -172,6 +201,9 @@ class SoundBoard:
 
     @commands.command()
     async def list(self, ctx: commands.Context):
+        """
+        List all the sounds on the soundboard.
+        """
         async with self.bot.pool.acquire() as conn:
             sounds = await conn.fetch('SELECT name FROM sounds ORDER BY name')
         if len(sounds) == 0:
@@ -210,6 +242,7 @@ class SoundBoard:
     async def stat(self, ctx: commands.Context, name: str):
         """
         Get stats of a sound.
+
         :param name: The sound to get stats for.
         """
         async with self.bot.pool.acquire() as conn:
@@ -227,7 +260,8 @@ class SoundBoard:
     async def rand(self, ctx: commands.Context, *, args=None):
         """
         Play a random sound.
-        :param args: The volume/speed of playback, in format v[volume%] s[speed%]. e.g. v50 s100. Both are optional.
+
+        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100.
         """
         async with self.bot.pool.acquire() as conn:
             name = await conn.fetchval('SELECT name FROM sounds ORDER BY RANDOM() LIMIT 1')
@@ -235,5 +269,5 @@ class SoundBoard:
 
 
 def setup(bot):
-    sound_path = Path('./sounds')
+    sound_path = Path(bot.config.get('sound_path', './sounds'))
     bot.add_cog(SoundBoard(sound_path, bot))
