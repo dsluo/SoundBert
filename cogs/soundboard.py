@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import hashlib
 from collections import OrderedDict
 from pathlib import Path
@@ -6,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import aiohttp
 import discord
+import time
 from discord import VoiceClient
 from discord.ext import commands
 
@@ -36,12 +38,16 @@ class SoundBoard:
             raise commands.BadArgument('Invalid sound name.')
 
         async with self.bot.pool.acquire() as conn:
-            filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name.lower())
+            filename = await conn.fetchval(
+                'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+                ctx.guild.id,
+                name.lower()
+            )
 
         if filename is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
-        file = self.sound_path / filename
+        file = self.sound_path / str(ctx.guild.id) / filename
 
         volume = None
         speed = None
@@ -81,7 +87,11 @@ class SoundBoard:
         async def stop():
             await vclient.disconnect(force=True)
             async with self.bot.pool.acquire() as conn:
-                await conn.execute('UPDATE sounds SET played = played + 1 WHERE name = $1', name)
+                await conn.execute(
+                    'UPDATE sounds SET played = played + 1 WHERE guild_id = $1 AND name = $2',
+                    ctx.guild.id,
+                    name
+                )
 
             return name
 
@@ -109,7 +119,11 @@ class SoundBoard:
         """
         # Disallow duplicate names
         async with self.bot.pool.acquire() as conn:
-            exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name.lower())
+            exists = await conn.fetchval(
+                'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
+                ctx.guild.id,
+                name.lower()
+            )
 
         if exists:
             raise commands.BadArgument(f'Sound named `{name}` already exists.')
@@ -130,7 +144,7 @@ class SoundBoard:
                         # Write response to temporary file and moves it to the /sounds directory when done.
                         # Filename = blake2 hash of file
                         hash = hashlib.blake2b()
-                        temp_file = Path('./tempsound')
+                        temp_file = Path(f'./tempsound_{ctx.guild.id}_{time.time()}')
                         with temp_file.open('wb') as f:
                             while True:
                                 chunk = await resp.content.read(1024)
@@ -142,16 +156,27 @@ class SoundBoard:
                         filename = hash.hexdigest().upper()
 
                         try:
-                            temp_file.rename(self.sound_path / filename)
+                            server_dir = self.sound_path / str(ctx.guild.id)
 
-                            async with self.bot.pool.acquire() as conn:
-                                await conn.execute('INSERT INTO sounds(name, filename) VALUES ($1, $2)',
-                                                   name.lower(), filename)
-                            await yes(ctx)
+                            if not server_dir.exists():
+                                server_dir.mkdir()
+                        except OSError:
+                            raise commands.BadArgument('Error while creating guild directory.')
+
+                        try:
+                            temp_file.rename(server_dir / filename)
                         except FileExistsError:
+                            temp_file.unlink()
                             raise commands.BadArgument('Sound already exists.')
-                        # finally:
-                        # temp_file.unlink()
+
+                        async with self.bot.pool.acquire() as conn:
+                            await conn.execute(
+                                'INSERT INTO sounds(guild_id, name, filename) VALUES ($1, $2, $3)',
+                                ctx.guild.id,
+                                name.lower(),
+                                filename
+                            )
+                        await yes(ctx)
 
                     else:
                         raise commands.CommandError(f'Error while downloading: {resp.status}: {resp.reason}.')
@@ -169,13 +194,21 @@ class SoundBoard:
         """
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
-                filename = await conn.fetchval('SELECT filename FROM sounds WHERE name = $1', name.lower())
+                filename = await conn.fetchval(
+                    'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+                    ctx.guild.id,
+                    name.lower()
+                )
                 if filename is None:
                     raise commands.BadArgument(f'Sound **{name}** does not exist.')
                 else:
-                    await conn.execute('DELETE FROM sounds WHERE filename = $1', filename)
+                    await conn.execute(
+                        'DELETE FROM sounds WHERE guild_id = $1 AND filename = $2',
+                        ctx.guild.id,
+                        filename
+                    )
 
-        file = self.sound_path / filename
+        file = self.sound_path / str(ctx.guild.id) / filename
         file.unlink()
         await yes(ctx)
 
@@ -191,11 +224,20 @@ class SoundBoard:
         """
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
-                exists = await conn.fetchval('SELECT EXISTS(SELECT 1 FROM sounds WHERE name = $1)', name.lower())
+                exists = await conn.fetchval(
+                    'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
+                    ctx.guild.id,
+                    name.lower()
+                )
                 if not exists:
                     raise commands.BadArgument(f'Sound **{name}** does not exist.')
                 else:
-                    await conn.execute('UPDATE sounds SET name = $2 WHERE name = $1', name.lower(), new_name.lower())
+                    await conn.execute(
+                        'UPDATE sounds SET name = $3 WHERE guild_id = $1 AND name = $2',
+                        ctx.guild.id,
+                        name.lower(),
+                        new_name.lower()
+                    )
 
         await yes(ctx)
 
@@ -205,7 +247,7 @@ class SoundBoard:
         List all the sounds on the soundboard.
         """
         async with self.bot.pool.acquire() as conn:
-            sounds = await conn.fetch('SELECT name FROM sounds ORDER BY name')
+            sounds = await conn.fetch('SELECT name FROM sounds WHERE guild_id = $1 ORDER BY name', ctx.guild.id)
         if len(sounds) == 0:
             message = 'No sounds yet.'
         else:
@@ -236,7 +278,11 @@ class SoundBoard:
         name = await self.playing.pop(ctx.guild.id)
 
         async with self.bot.pool.acquire() as conn:
-            await conn.execute('UPDATE sounds SET stopped = stopped + 1 WHERE name = $1', name.lower())
+            await conn.execute(
+                'UPDATE sounds SET stopped = stopped + 1 WHERE guild_id = $1 AND name = $2',
+                ctx.guild.id,
+                name.lower()
+            )
 
     @commands.command()
     async def stat(self, ctx: commands.Context, name: str):
@@ -246,7 +292,11 @@ class SoundBoard:
         :param name: The sound to get stats for.
         """
         async with self.bot.pool.acquire() as conn:
-            sound = await conn.fetchval('SELECT (played, stopped) FROM sounds WHERE name = $1', name.lower())
+            sound = await conn.fetchval(
+                'SELECT (played, stopped) FROM sounds WHERE guild_id = $1 AND name = $2',
+                ctx.guild.id,
+                name.lower()
+            )
 
         if sound is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
@@ -264,7 +314,10 @@ class SoundBoard:
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100.
         """
         async with self.bot.pool.acquire() as conn:
-            name = await conn.fetchval('SELECT name FROM sounds ORDER BY RANDOM() LIMIT 1')
+            name = await conn.fetchval(
+                'SELECT name FROM sounds WHERE guild_id = $1 ORDER BY RANDOM() LIMIT 1',
+                ctx.guild.id
+            )
         await ctx.invoke(self.play, name, args=args)
 
 
