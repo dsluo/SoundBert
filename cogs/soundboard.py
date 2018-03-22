@@ -86,25 +86,29 @@ class SoundBoard:
 
         async def stop():
             await vclient.disconnect(force=True)
-            async with self.bot.pool.acquire() as conn:
-                await conn.execute(
-                    'UPDATE sounds SET played = played + 1 WHERE guild_id = $1 AND name = $2',
-                    ctx.guild.id,
-                    name
-                )
-
             return name
 
-        coro = stop()
-
         def wrapper(error):
-            future = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
             try:
-                future.result()
-            except:
+                coro = self.playing.pop(ctx.guild.id)
+                future = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
+                try:
+                    future.result()
+                except:
+                    pass
+            except KeyError:
+                # sound was stopped with stop command, so do nothing.
                 pass
 
-        self.playing[ctx.guild.id] = coro
+        self.playing[ctx.guild.id] = stop()
+
+        async with self.bot.pool.acquire() as conn:
+            await conn.execute(
+                'UPDATE sounds SET played = played + 1 WHERE guild_id = $1 AND name = $2',
+                ctx.guild.id,
+                name
+            )
+
         vclient.play(source=source, after=wrapper)
 
     @commands.command(
@@ -275,7 +279,8 @@ class SoundBoard:
         """
         Stop playback of the current sound.
         """
-        name = await self.playing.pop(ctx.guild.id)
+        coro = self.playing.pop(ctx.guild.id)
+        name = await coro
 
         async with self.bot.pool.acquire() as conn:
             await conn.execute(
