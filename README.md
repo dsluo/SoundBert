@@ -37,7 +37,3 @@ A soundboard for [discord](https://discordapp.com/).
 | `!stat <name>`                  | Get playback stats for a sound               |
 | `!help`                         | Print help message                           |
 
-## TODO
-
-* use postgres native user authentication instead of user+password
-* run bot using service
