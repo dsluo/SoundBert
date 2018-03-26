@@ -15,9 +15,8 @@ class Info:
 
     @commands.command()
     async def invite(self, ctx: commands.Context):
-        client_id = await self.bot.user.id
         await ctx.send(
-            f'https://discordapp.com/api/oauth2/authorize?client_id={client_id}&permissions=0&scope=bot'
+            f'https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=0&scope=bot'
         )
 
     @commands.command()
