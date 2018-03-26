@@ -39,8 +39,8 @@ class Info:
         await ctx.send('Uptime: '
                        f'**{days}** day{"" if days == 1 else "s"} '
                        f'**{hours}** hour{"" if hours == 1 else "s"} '
-                       f'**{minutes}** minute{"" if hours == 1 else "s"} '
-                       f'**{seconds}** second{"" if hours == 1 else "s"}.')
+                       f'**{minutes}** minute{"" if minutes == 1 else "s"} '
+                       f'**{seconds}** second{"" if seconds == 1 else "s"}.')
 
 
 def setup(bot):
