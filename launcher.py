@@ -2,8 +2,6 @@ import argparse
 import json
 import logging
 
-import sys
-
 from soundbert import SoundBert
 
 parser = argparse.ArgumentParser()
@@ -13,6 +11,8 @@ args = parser.parse_args()
 
 if args.log:
     logging.basicConfig(filename=args.log, level=logging.INFO)
+else:
+    logging.basicConfig(level=logging.INFO)
 
 log = logging.getLogger(__name__)
 
