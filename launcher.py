@@ -25,5 +25,8 @@ if __name__ == '__main__':
     while True:
         try:
             bot.run()
+        except KeyboardInterrupt:
+            log.info('Received Ctrl-C. Stopping...')
+            break
         except Exception as ex:
             log.critical('Bot crashed: {0}', ex.args)
