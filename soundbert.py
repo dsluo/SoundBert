@@ -5,7 +5,6 @@ from discord.ext import commands
 
 from cogs.utils.reactions import no
 
-logging.basicConfig(level=logging.INFO)
 log = logging.getLogger(__name__)
 
 
