@@ -1,16 +1,29 @@
 import argparse
 import json
+import logging
+
+import sys
 
 from soundbert import SoundBert
 
 parser = argparse.ArgumentParser()
 parser.add_argument('config', type=argparse.FileType('r'))
+parser.add_argument('--log')
 args = parser.parse_args()
 
-with args.config as f:
-    config = json.load(f)
+if args.log:
+    logging.basicConfig(filename=args.log, level=logging.INFO)
 
-bot = SoundBert(config)
+log = logging.getLogger(__name__)
+
+config = json.load(args.config)
+args.config.close()
 
 if __name__ == '__main__':
-    bot.run()
+    bot = SoundBert(config)
+
+    while True:
+        try:
+            bot.run()
+        except Exception as ex:
+            log.critical('Bot crashed: {0}', ex.args)
