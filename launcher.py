@@ -32,3 +32,5 @@ if __name__ == '__main__':
         except Exception as ex:
             log.critical('Bot crashed: {0}', ex.args)
             time.sleep(5)  # kind of arbitrary
+            log.critical('Reinitializing...')
+            bot = SoundBert(config)
