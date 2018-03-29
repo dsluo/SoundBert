@@ -1,6 +1,7 @@
 import argparse
 import json
 import logging
+import time
 
 from soundbert import SoundBert
 
@@ -30,3 +31,4 @@ if __name__ == '__main__':
             break
         except Exception as ex:
             log.critical('Bot crashed: {0}', ex.args)
+            time.sleep(5)  # kind of arbitrary
