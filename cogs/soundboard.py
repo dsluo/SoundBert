@@ -67,8 +67,9 @@ class SoundBoard:
                             raise commands.BadArgument('Speed must be between 50% and 200%.')
                     except ValueError:
                         raise commands.BadArgument(f'Could not parse `{args}`.')
-        else:
+        if volume is None:
             volume = 100
+        if speed is None:
             speed = 100
 
         channel = ctx.author.voice.channel
