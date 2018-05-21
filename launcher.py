@@ -1,9 +1,17 @@
 import argparse
+import asyncio
 import json
 import logging
 import time
 
 from soundbert import SoundBert
+
+try:
+    import uvloop
+
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass
 
 parser = argparse.ArgumentParser()
 parser.add_argument('config', type=argparse.FileType('r'))
