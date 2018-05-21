@@ -5,6 +5,7 @@ from collections import OrderedDict
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import aiofiles
 import aiohttp
 import discord
 from discord import VoiceClient
@@ -149,13 +150,13 @@ class SoundBoard:
                         # Filename = blake2 hash of file
                         hash = hashlib.blake2b()
                         temp_file = Path(f'./tempsound_{ctx.guild.id}_{time.time()}')
-                        with temp_file.open('wb') as f:
+                        async with aiofiles.open(temp_file, 'wb') as f:
                             while True:
                                 chunk = await resp.content.read(1024)
                                 if not chunk:
                                     break
                                 hash.update(chunk)
-                                f.write(chunk)
+                                await f.write(chunk)
 
                         filename = hash.hexdigest().upper()
 
