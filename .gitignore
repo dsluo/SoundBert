@@ -101,7 +101,10 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+# Jetbrains IDEs
 .idea/
+
+# config files
 *.json
 token.txt
 config.json
