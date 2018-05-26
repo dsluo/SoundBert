@@ -15,22 +15,34 @@ class Info:
 
     @commands.command()
     async def invite(self, ctx: commands.Context):
+        """
+        Get the invite link for this bot.
+        """
         await ctx.send(
             f'https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=0&scope=bot'
         )
 
     @commands.command()
     async def source(self, ctx: commands.Context):
+        """
+        Links the GitHub repository for the source of this bot.
+        """
         await ctx.send('https://github.com/dsluo/SoundBert/')
 
     @commands.command()
     async def info(self, ctx: commands.Context):
+        """
+        Provides some basic info about the bot.
+        """
         await ctx.send('SoundBert by dsluo\n'
                        'Written in Python using discord.py\n'
                        'https://github.com/dsluo/SoundBert/')
 
     @commands.command()
     async def uptime(self, ctx: commands.Context):
+        """
+        Displays time since the last restart.
+        """
         time = datetime.now() - self.startup
 
         days = time.days
