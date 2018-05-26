@@ -5,7 +5,11 @@ CREATE TABLE IF NOT EXISTS guild
 
 CREATE TABLE sounds
 (
-  guild_id BIGINT            NOT NULL,
+  guild_id BIGINT            NOT NULL
+    CONSTRAINT sounds_guild_id_fk
+    REFERENCES guild
+    ON UPDATE CASCADE
+    ON DELETE CASCADE,
   filename VARCHAR(128)      NOT NULL,
   name     VARCHAR           NOT NULL,
   played   INTEGER DEFAULT 0 NOT NULL,

@@ -130,63 +130,67 @@ class SoundBoard:
                 name.lower()
             )
 
-        if exists:
-            raise commands.BadArgument(f'Sound named `{name}` already exists.')
+            if exists:
+                raise commands.BadArgument(f'Sound named `{name}` already exists.')
 
-        # Resolve download url.
-        if link is None:
-            try:
-                link = ctx.message.attachments[0].url
-            except (IndexError, KeyError):
-                raise commands.BadArgument('Download link or file attachment required.')
+            # Resolve download url.
+            if link is None:
+                try:
+                    link = ctx.message.attachments[0].url
+                except (IndexError, KeyError):
+                    raise commands.BadArgument('Download link or file attachment required.')
 
-        # Download file
-        with ctx.typing():
-            async with aiohttp.ClientSession() as session:
-                async with session.get(link) as resp:
-                    if resp.status == 200:
+            # Download file
+            with ctx.typing():
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(link) as resp:
+                        if resp.status == 200:
 
-                        # Write response to temporary file and moves it to the /sounds directory when done.
-                        # Filename = blake2 hash of file
-                        hash = hashlib.blake2b()
-                        temp_file = Path(f'./tempsound_{ctx.guild.id}_{time.time()}')
-                        async with aiofiles.open(temp_file, 'wb') as f:
-                            while True:
-                                chunk = await resp.content.read(1024)
-                                if not chunk:
-                                    break
-                                hash.update(chunk)
-                                await f.write(chunk)
+                            # Write response to temporary file and moves it to the /sounds directory when done.
+                            # Filename = blake2 hash of file
+                            hash = hashlib.blake2b()
+                            temp_file = Path(f'./tempsound_{ctx.guild.id}_{time.time()}')
+                            async with aiofiles.open(temp_file, 'wb') as f:
+                                while True:
+                                    chunk = await resp.content.read(1024)
+                                    if not chunk:
+                                        break
+                                    hash.update(chunk)
+                                    await f.write(chunk)
 
-                        filename = hash.hexdigest().upper()
+                            filename = hash.hexdigest().upper()
 
-                        try:
-                            server_dir = self.sound_path / str(ctx.guild.id)
+                            try:
+                                server_dir = self.sound_path / str(ctx.guild.id)
 
-                            if not server_dir.exists():
-                                server_dir.mkdir()
-                        except OSError:
-                            raise commands.BadArgument('Error while creating guild directory.')
+                                if not server_dir.exists():
+                                    server_dir.mkdir()
+                            except OSError:
+                                raise commands.BadArgument('Error while creating guild directory.')
 
-                        try:
-                            temp_file.rename(server_dir / filename)
-                        except FileExistsError:
-                            temp_file.unlink()
-                            raise commands.BadArgument('Sound already exists.')
+                            try:
+                                temp_file.rename(server_dir / filename)
+                            except FileExistsError:
+                                temp_file.unlink()
+                                raise commands.BadArgument('Sound already exists.')
 
-                        async with self.bot.pool.acquire() as conn:
+                            await conn.execute(
+                                'INSERT INTO guild(id) VALUES ($1) ON CONFLICT DO NOTHING',
+                                ctx.guild.id
+                            )
+
                             await conn.execute(
                                 'INSERT INTO sounds(guild_id, name, filename) VALUES ($1, $2, $3)',
                                 ctx.guild.id,
                                 name.lower(),
                                 filename
                             )
-                        await yes(ctx)
+                            await yes(ctx)
 
-                    else:
-                        raise commands.CommandError(f'Error while downloading: {resp.status}: {resp.reason}.')
-                    # probably not needed because context manager
-                    # await resp.release()
+                        else:
+                            raise commands.CommandError(f'Error while downloading: {resp.status}: {resp.reason}.')
+                        # probably not needed because context manager
+                        # await resp.release()
 
     @commands.command(
         aliases=['-', 'd', 'del']
