@@ -326,6 +326,20 @@ class SoundBoard:
             )
         await ctx.invoke(self.play, name, args=args)
 
+    @commands.command(
+        hidden=True
+    )
+    @commands.is_owner()
+    async def id(self, ctx: commands.Context, name, guild_id=None):
+        async with self.bot.pool.acquire() as conn:
+            filename = await conn.fetchval(
+                'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+                guild_id or ctx.guild.id,
+                name.lower()
+            )
+
+        await ctx.send(str(filename))
+
 
 def setup(bot):
     sound_path = Path(bot.config.get('sound_path', './sounds'))
