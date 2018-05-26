@@ -1,3 +1,8 @@
+CREATE TABLE IF NOT EXISTS guild
+(
+  id BIGINT PRIMARY KEY
+);
+
 CREATE TABLE sounds
 (
   guild_id BIGINT            NOT NULL,
