@@ -24,6 +24,9 @@ class SoundBoard:
 
         self.playing = {}
 
+        if not self.sound_path.is_dir():
+            self.sound_path.mkdir()
+
     @commands.command(
         aliases=['!', 'p']
     )
