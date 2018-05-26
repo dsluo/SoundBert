@@ -21,13 +21,13 @@ class Info:
 
     @commands.command()
     async def source(self, ctx: commands.Context):
-        await ctx.send('https://github.com/davidsluo/SoundBert/')
+        await ctx.send('https://github.com/dsluo/SoundBert/')
 
     @commands.command()
     async def info(self, ctx: commands.Context):
-        await ctx.send('SoundBert by davidsluo\n'
+        await ctx.send('SoundBert by dsluo\n'
                        'Written in Python using discord.py\n'
-                       'https://github.com/davidsluo/SoundBert/')
+                       'https://github.com/dsluo/SoundBert/')
 
     @commands.command()
     async def uptime(self, ctx: commands.Context):
