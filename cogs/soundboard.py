@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import aiofiles
-import aiohttp
 import discord
+import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 
@@ -145,55 +145,66 @@ class SoundBoard:
 
             # Download file
             with ctx.typing():
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(link) as resp:
-                        if resp.status == 200:
+                def download_sound(url):
+                    options = {
+                        'format':            'bestaudio/best',
+                        'postprocessors':    [{
+                            'key':            'FFmpegExtractAudio',
+                            'preferredcodec': 'mp3'
+                        }],
+                        'outtmpl':           f'{ctx.guild.id}_{ctx.author.id}_{time.time()}.mp3',
+                        'restrictfilenames': True,
+                        'default_search':    'error',
+                    }
+                    yt = youtube_dl.YoutubeDL(options)
+                    info = yt.extract_info(url)
+                    filename = yt.prepare_filename(info)
+                    file = Path(filename)
+                    return file
 
-                            # Write response to temporary file and moves it to the /sounds directory when done.
-                            # Filename = blake2 hash of file
-                            hash = hashlib.blake2b()
-                            temp_file = Path(f'./tempsound_{ctx.guild.id}_{time.time()}')
-                            async with aiofiles.open(temp_file, 'wb') as f:
-                                while True:
-                                    chunk = await resp.content.read(1024)
-                                    if not chunk:
-                                        break
-                                    hash.update(chunk)
-                                    await f.write(chunk)
+                try:
+                    file = await self.bot.loop.run_in_executor(None, download_sound, link)
+                except youtube_dl.DownloadError:
+                    raise commands.BadArgument('Malformed download link.')
 
-                            filename = hash.hexdigest().upper()
+                # Write response to temporary file and moves it to the /sounds directory when done.
+                # Filename = blake2 hash of file
+                hash = hashlib.blake2b()
+                async with aiofiles.open(file, 'rb') as f:
+                    while True:
+                        chunk = await f.read(8192)
+                        if not chunk:
+                            break
+                        hash.update(chunk)
 
-                            try:
-                                server_dir = self.sound_path / str(ctx.guild.id)
+                filename = hash.hexdigest().upper()
 
-                                if not server_dir.exists():
-                                    server_dir.mkdir()
-                            except OSError:
-                                raise commands.BadArgument('Error while creating guild directory.')
+                try:
+                    server_dir = self.sound_path / str(ctx.guild.id)
 
-                            try:
-                                temp_file.rename(server_dir / filename)
-                            except FileExistsError:
-                                temp_file.unlink()
-                                raise commands.BadArgument('Sound already exists.')
+                    if not server_dir.exists():
+                        server_dir.mkdir()
+                except OSError:
+                    raise commands.BadArgument('Error while creating guild directory.')
 
-                            await conn.execute(
-                                'INSERT INTO guild(id) VALUES ($1) ON CONFLICT DO NOTHING',
-                                ctx.guild.id
-                            )
+                try:
+                    file.rename(server_dir / filename)
+                except FileExistsError:
+                    file.unlink()
+                    raise commands.BadArgument('Sound already exists.')
 
-                            await conn.execute(
-                                'INSERT INTO sounds(guild_id, name, filename) VALUES ($1, $2, $3)',
-                                ctx.guild.id,
-                                name.lower(),
-                                filename
-                            )
-                            await yes(ctx)
+                await conn.execute(
+                    'INSERT INTO guild(id) VALUES ($1) ON CONFLICT DO NOTHING',
+                    ctx.guild.id
+                )
 
-                        else:
-                            raise commands.CommandError(f'Error while downloading: {resp.status}: {resp.reason}.')
-                        # probably not needed because context manager
-                        # await resp.release()
+                await conn.execute(
+                    'INSERT INTO sounds(guild_id, name, filename) VALUES ($1, $2, $3)',
+                    ctx.guild.id,
+                    name.lower(),
+                    filename
+                )
+                await yes(ctx)
 
     @commands.command(
         aliases=['-', 'd', 'del']
