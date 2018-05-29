@@ -1,4 +1,6 @@
 # SoundBert
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fdsluo%2FSoundBert.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fdsluo%2FSoundBert?ref=badge_shield)
+
 
 A soundboard for [discord](https://discordapp.com/).
 
@@ -39,3 +41,7 @@ A soundboard for [discord](https://discordapp.com/).
 | `!stat <name>`                  | Get playback stats for a sound               |
 | `!help`                         | Print help message                           |
 
+
+
+## License
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fdsluo%2FSoundBert.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fdsluo%2FSoundBert?ref=badge_large)
