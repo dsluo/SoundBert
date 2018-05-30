@@ -11,6 +11,7 @@ import discord
 from discord import VoiceClient
 from discord.ext import commands
 
+from cogs.utils.converters import DurationConverter
 from cogs.utils.reactions import yes
 
 if TYPE_CHECKING:
@@ -23,6 +24,7 @@ class SoundBoard:
         self.bot = bot
 
         self.playing = {}
+        self.muted = {}
 
         if not self.sound_path.is_dir():
             self.sound_path.mkdir()
@@ -37,6 +39,11 @@ class SoundBoard:
         :param name: The name of the sound to play.
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100.
         """
+        if ctx.guild.id in self.muted and name in self.muted[ctx.guild.id]:
+            await ctx.message.add_reaction('\N{SPEAKER WITH CANCELLATION STROKE}')
+            return
+            # raise commands.CommandError('Sound is muted.')
+
         if not name:
             raise commands.BadArgument('Invalid sound name.')
 
@@ -346,6 +353,40 @@ class SoundBoard:
             )
 
         await ctx.send(str(filename))
+
+    async def mute_sound(self, guild_id, name, seconds):
+        if guild_id not in self.muted:
+            self.muted[guild_id] = [name]
+        else:
+            self.muted[guild_id].append(name)
+
+        await asyncio.sleep(seconds)
+
+        await self.unmute_sound(guild_id, name)
+
+    async def unmute_sound(self, guild_id, name):
+        self.muted[guild_id].remove(name)
+        if self.muted[guild_id]:
+            del self.muted[guild_id]
+
+    @commands.command()
+    async def mute(self, ctx: commands.Context, name, *, duration: DurationConverter):
+        """
+        Mute the specified sound for a certain amount of time.
+        :param name: The name of the sound to mute.
+        :param duration: How long to mute it.
+        """
+        self.bot.loop.create_task(self.mute_sound(ctx.guild.id, name, duration.total_seconds()))
+        await yes(ctx)
+
+    @commands.command()
+    async def unmute(self, ctx: commands.Context, name):
+        """
+        Unmute the specified sound.
+        :param name: The name of the sound to unmute.
+        """
+        await self.unmute_sound(ctx.guild.id, name)
+        await yes(ctx)
 
 
 def setup(bot):
