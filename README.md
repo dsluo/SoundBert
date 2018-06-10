@@ -27,15 +27,28 @@ A soundboard for [discord](https://discordapp.com/).
 
 ## Commands
 
-| Command                         | Function                                     |
-| ------------------------------- | -------------------------------------------- |
-| `!play <name> [vXX] [sYY]`      | Play a sound at `XX%` volume and `YY%` speed |
-| `!add <name> <link>`            | Add a new sound                              |
-| `!delete <name>`                | Remove a sound                               |
-| `!rename <name> <new_name>`     | Rename a sound                               |
-| `!rand`                         | Play a random sound                          |
-| `!stop`                         | Force stop sound playback                    |
-| `!list`                         | Print a list of all sounds                   |
-| `!stat <name>`                  | Get playback stats for a sound               |
-| `!help`                         | Print help message                           |
+`!help`
 
+```
+Info:
+  info   Provides some basic info about the bot.
+  invite Get the invite link for this bot.
+  source Links the GitHub repository for the source of this bot.
+  uptime Displays time since the last restart.
+SoundBoard:
+  add    Add a new sound to the soundboard.
+  delete Delete a sound.
+  list   List all the sounds on the soundboard.
+  mute   Mute the specified sound for a certain amount of time.
+  play   Play a sound.
+  rand   Play a random sound.
+  rename Rename a sound.
+  stat   Get stats of a sound.
+  stop   Stop playback of the current sound.
+  unmute Unmute the specified sound.
+​No Category:
+  help   Shows this message.
+
+Type !help command for more info on a command.
+You can also type !help category for more info on a category.
+```
