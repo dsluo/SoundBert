@@ -293,12 +293,15 @@ class SoundBoard:
                     split[first].append(name)
 
             message = '**Sounds**\n'
-
             for letter, sounds_ in split.items():
                 line = f'**`{letter}`**: {", ".join(sounds_)}\n'
+                if len(message) + len(line) > 2000:
+                    await ctx.send(message)
+                    message = ''
                 message += line
 
-        await ctx.send(message)
+        if message:
+            await ctx.send(message)
 
     @commands.command()
     async def stop(self, ctx: commands.Context):
