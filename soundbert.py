@@ -7,6 +7,7 @@ from cogs.utils.reactions import no
 
 log = logging.getLogger(__name__)
 
+VERBOSE_ERRORS = False
 
 class SoundBert(commands.Bot):
     def __init__(self, config):
@@ -28,7 +29,8 @@ class SoundBert(commands.Bot):
         super(SoundBert, self).run(self.config['token'])
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
-        if len(exception.args) > 0:
-            await ctx.send(exception.args[0])
-        else:
-            await no(ctx)
+        if VERBOSE_ERRORS:
+            if len(exception.args) > 0:
+                await ctx.send(exception.args[0])
+            else:
+                await no(ctx)
