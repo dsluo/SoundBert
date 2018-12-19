@@ -89,7 +89,7 @@ class SoundBoard:
             raise commands.CommandError('No target channel.')
 
         vclient: VoiceClient = ctx.guild.voice_client or await channel.connect()
-        vclient.move_to(channel)
+        await vclient.move_to(channel)
 
         source = discord.FFmpegPCMAudio(str(file),
                                         options=f'-filter:a "atempo={speed/100}"')
