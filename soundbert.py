@@ -9,6 +9,7 @@ log = logging.getLogger(__name__)
 
 VERBOSE_ERRORS = False
 
+
 class SoundBert(commands.Bot):
     def __init__(self, config):
         prefix = config.get('default_prefix', '!')
@@ -34,3 +35,5 @@ class SoundBert(commands.Bot):
                 await ctx.send(exception.args[0])
             else:
                 await no(ctx)
+
+        log.error('Encountered exception while executing command:', exc_info=exception)
