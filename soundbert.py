@@ -1,6 +1,7 @@
 import logging
 
 import asyncpg
+from discord import Message
 from discord.ext import commands
 
 from cogs.utils.reactions import no
@@ -10,17 +11,23 @@ log = logging.getLogger(__name__)
 VERBOSE_ERRORS = False
 
 
+async def get_prefix(bot: 'SoundBert', msg: Message):
+    async with bot.pool.acquire() as conn:
+        prefix = await conn.fetchval('SELECT prefix FROM guild WHERE id = $1', msg.guild.id)
+    return prefix if prefix else '!'
+
+
 class SoundBert(commands.Bot):
     def __init__(self, config):
-        prefix = config.get('default_prefix', '!')
-        super().__init__(prefix)
+        super().__init__(command_prefix=get_prefix)
 
         self.config = config
         self.pool = self.loop.run_until_complete(asyncpg.create_pool(config['db_uri']))
 
         extensions = [
             'cogs.soundboard',
-            'cogs.info'
+            'cogs.info',
+            'cogs.settings'
         ]
 
         for ext in extensions:
