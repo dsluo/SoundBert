@@ -201,7 +201,7 @@ class SoundBoard:
                     raise commands.BadArgument('Sound already exists.')
 
                 await conn.execute(
-                    'INSERT INTO guild(id) VALUES ($1) ON CONFLICT DO NOTHING',
+                    'INSERT INTO guilds(id) VALUES ($1) ON CONFLICT DO NOTHING',
                     ctx.guild.id
                 )
 
