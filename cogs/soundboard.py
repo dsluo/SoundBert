@@ -61,6 +61,7 @@ class SoundBoard:
 
         volume = None
         speed = None
+        seek = None
 
         if args is not None:
             for arg in args.split():
@@ -78,10 +79,22 @@ class SoundBoard:
                             raise commands.BadArgument('Speed must be between 50% and 200%.')
                     except ValueError:
                         raise commands.BadArgument(f'Could not parse `{args}`.')
+                elif arg.startswith('t'):
+                    try:
+                        split = args[1:].split(':', maxsplit=2)
+                        hours, mins, secs = ['0'] * (3 - len(split)) + split
+
+                        # prevents command line injection
+                        hours = int(hours)
+                        mins = int(mins)
+                        secs = int(secs)
+
+                        seek = f'{hours}:{mins:02}:{secs:02}'
+                    except ValueError:
+                        raise commands.BadArgument(f'Could not parse `{args}`.')
+
         if volume is None:
             volume = 100
-        if speed is None:
-            speed = 100
 
         channel = ctx.author.voice.channel
 
@@ -91,8 +104,11 @@ class SoundBoard:
         vclient: VoiceClient = ctx.guild.voice_client or await channel.connect()
         await vclient.move_to(channel)
 
-        source = discord.FFmpegPCMAudio(str(file),
-                                        options=f'-filter:a "atempo={speed/100}"')
+        source = discord.FFmpegPCMAudio(
+            str(file),
+            before_options=f'-ss {seek}' if seek else None,
+            options=f'-filter:a "atempo={speed / 100}"' if speed else None
+        )
         source = discord.PCMVolumeTransformer(source, volume=volume / 100)
 
         async def stop():
