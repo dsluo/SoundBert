@@ -85,9 +85,9 @@ class SoundBoard:
                         hours, mins, secs = ['0'] * (3 - len(split)) + split
 
                         # prevents command line injection
-                        hours = int(hours)
-                        mins = int(mins)
-                        secs = int(secs)
+                        hours = int(hours or 0)
+                        mins = int(mins or 0)
+                        secs = int(secs or 0)
 
                         seek = f'{hours}:{mins:02}:{secs:02}'
                     except ValueError:
