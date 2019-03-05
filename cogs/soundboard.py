@@ -89,6 +89,11 @@ class SoundBoard:
                         mins = int(mins or 0)
                         secs = int(secs or 0)
 
+                        # if any one of them are > 60, resolve it
+                        carry, secs = divmod(secs, 60)
+                        carry, mins = divmod(mins + carry, 60)
+                        hours += carry
+
                         seek = f'{hours}:{mins:02}:{secs:02}'
                     except ValueError:
                         raise commands.BadArgument(f'Could not parse `{args}`.')
