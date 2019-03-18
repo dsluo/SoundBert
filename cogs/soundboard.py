@@ -12,7 +12,7 @@ from discord import VoiceClient
 from discord.ext import commands
 
 from cogs.utils.converters import DurationConverter
-from cogs.utils.reactions import yes
+from cogs.utils.reactions import yes, no
 
 if TYPE_CHECKING:
     from soundbert import SoundBert
@@ -25,6 +25,7 @@ class SoundBoard:
 
         self.playing = {}
         self.muted = {}
+        self.last_played = {}
 
         if not self.sound_path.is_dir():
             self.sound_path.mkdir()
@@ -119,6 +120,8 @@ class SoundBoard:
                 ctx.guild.id,
                 name
             )
+
+        self.last_played[ctx.guild.id] = (name, args)
 
         vclient.play(source=source, after=wrapper)
 
@@ -398,6 +401,21 @@ class SoundBoard:
         """
         await self.unmute_sound(ctx.guild.id, name)
         await yes(ctx)
+
+    @commands.command(
+        name='last'
+    )
+    async def last_played(self, ctx: commands.Context):
+        """
+        Play the last sound played.
+        """
+        try:
+            name, args = self.last_played[ctx.guild.id]
+        except KeyError:
+            await no(ctx)
+            return
+
+        await ctx.invoke(self.play, name, args=args)
 
 
 def setup(bot):
