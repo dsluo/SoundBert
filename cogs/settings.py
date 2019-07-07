@@ -4,7 +4,7 @@ from cogs.utils.reactions import yes
 from soundbert import SoundBert
 
 
-class Settings:
+class Settings(commands.Cog):
     def __init__(self, bot: SoundBert):
         self.bot = bot
 

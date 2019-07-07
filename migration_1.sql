@@ -1,1 +1,0 @@
-ALTER TABLE guild ADD prefix CHAR;

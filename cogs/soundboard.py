@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from soundbert import SoundBert
 
 
-class SoundBoard:
+class SoundBoard(commands.Cog):
     def __init__(self, sound_path: Path, bot: 'SoundBert'):
         self.sound_path = sound_path.absolute()
         self.bot = bot

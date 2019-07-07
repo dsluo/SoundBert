@@ -13,7 +13,7 @@ VERBOSE_ERRORS = False
 
 async def get_prefix(bot: 'SoundBert', msg: Message):
     async with bot.pool.acquire() as conn:
-        prefix = await conn.fetchval('SELECT prefix FROM guild WHERE id = $1', msg.guild.id)
+        prefix = await conn.fetchval('SELECT prefix FROM guilds WHERE id = $1', msg.guild.id)
     return commands.when_mentioned_or(prefix if prefix else '!')(bot, msg)
 
 

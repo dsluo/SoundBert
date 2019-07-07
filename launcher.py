@@ -4,6 +4,8 @@ import json
 import logging
 import time
 
+from decouple import config
+
 from soundbert import SoundBert
 
 try:
@@ -14,7 +16,6 @@ except ImportError:
     pass
 
 parser = argparse.ArgumentParser()
-parser.add_argument('config', type=argparse.FileType('r'))
 parser.add_argument('--log')
 args = parser.parse_args()
 
@@ -25,11 +26,15 @@ else:
 
 log = logging.getLogger(__name__)
 
-config = json.load(args.config)
-args.config.close()
-
 if __name__ == '__main__':
-    bot = SoundBert(config)
+
+    c = {
+        'token': config('token'),
+        'db_uri': config('db_uri')
+    }
+
+
+    bot = SoundBert(c)
 
     while True:
         try:

@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from soundbert import SoundBert
 
 
-class Info:
+class Info(commands.Cog):
     def __init__(self, bot: 'SoundBert'):
         self.bot = bot
 
