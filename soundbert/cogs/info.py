@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from discord.ext import commands
 
 if TYPE_CHECKING:
-    from soundbert import SoundBert
+    from ..soundbert import SoundBert
 
 
 class Info(commands.Cog):

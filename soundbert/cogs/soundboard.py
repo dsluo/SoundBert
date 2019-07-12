@@ -11,11 +11,11 @@ import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 
-from cogs.utils.converters import DurationConverter
-from cogs.utils.reactions import yes, no
+from .utils.converters import DurationConverter
+from .utils.reactions import yes, no
 
 if TYPE_CHECKING:
-    from soundbert import SoundBert
+    from ..soundbert import SoundBert
 
 
 class SoundBoard(commands.Cog):
@@ -443,5 +443,5 @@ class SoundBoard(commands.Cog):
 
 
 def setup(bot):
-    sound_path = Path(bot.config.get('sound_path', './sounds'))
+    sound_path = Path(bot.config['soundboard'].get('path', './sounds'))
     bot.add_cog(SoundBoard(sound_path, bot))

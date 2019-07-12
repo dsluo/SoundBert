@@ -1,7 +1,7 @@
 from discord.ext import commands
 
-from cogs.utils.reactions import yes
-from soundbert import SoundBert
+from .utils.reactions import yes
+from ..soundbert import SoundBert
 
 
 class Settings(commands.Cog):
