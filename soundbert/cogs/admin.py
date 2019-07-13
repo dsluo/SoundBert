@@ -24,6 +24,8 @@ class Admin(commands.Cog):
             with path.open('r') as f:
                 config = toml.load(f)
 
+            del config['bot']['token']  # probably dont want this in memory
+
             self.bot.config = config
 
             await yes(ctx)
