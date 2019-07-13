@@ -5,6 +5,7 @@ asyncpg==0.18.3
 attrs==19.1.0
 cffi==1.12.3
 chardet==3.0.4
+Click==7.0
 discord.py==1.2.2
 idna==2.8
 multidict==4.5.2
