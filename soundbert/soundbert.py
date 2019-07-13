@@ -22,10 +22,11 @@ class SoundBert(commands.Bot):
         self.pool = self.loop.run_until_complete(asyncpg.create_pool(config['bot']['db_uri']))
 
         extensions = [
-            'cogs.soundboard',
-            'cogs.info',
-            'cogs.settings'
-        ].extend(config['bot']['cogs'])
+            'soundbert.cogs.soundboard',
+            'soundbert.cogs.info',
+            'soundbert.cogs.settings',
+            *config['bot'].get('extra_cogs', [])
+        ]
 
         for ext in extensions:
             self.load_extension(ext)
