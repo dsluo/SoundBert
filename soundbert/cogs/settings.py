@@ -22,15 +22,11 @@ class Settings(commands.Cog):
         """
         async with self.bot.pool.acquire() as conn:
             await conn.execute(
-                'UPDATE guild SET prefix = $1 WHERE id = $2',
+                'UPDATE guilds SET prefix = $1 WHERE id = $2',
                 prefix,
                 ctx.guild.id
             )
         await yes(ctx)
-
-    @settings.command()
-    async def permissions(self, ctx: commands.Context, group, name):
-        pass
 
 
 def setup(bot):
