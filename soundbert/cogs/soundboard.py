@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 import time
 from collections import OrderedDict
 from pathlib import Path
@@ -14,8 +15,9 @@ from discord.ext import commands
 from .utils.converters import DurationConverter
 from .utils.reactions import yes, no
 
-if TYPE_CHECKING:
-    from ..soundbert import SoundBert
+from ..soundbert import SoundBert
+
+log = logging.getLogger(__name__)
 
 
 class SoundBoard(commands.Cog):
@@ -105,6 +107,7 @@ class SoundBoard(commands.Cog):
         if channel is None:
             raise commands.CommandError('No target channel.')
 
+        log.debug('Connecting to voice channel.')
         vclient: VoiceClient = ctx.guild.voice_client or await channel.connect()
         await vclient.move_to(channel)
 
@@ -116,6 +119,7 @@ class SoundBoard(commands.Cog):
         source = discord.PCMVolumeTransformer(source, volume=volume / 100)
 
         async def stop():
+            log.debug('Stopping playback.')
             await vclient.disconnect(force=True)
             return name
 
@@ -142,6 +146,7 @@ class SoundBoard(commands.Cog):
 
         self.last_played[ctx.guild.id] = (name, args)
 
+        log.debug('Stopping playback.')
         vclient.play(source=source, after=wrapper)
 
     @commands.command(aliases=['+', 'a'])
@@ -184,6 +189,7 @@ class SoundBoard(commands.Cog):
                         'default_search':    'error',
                     }
                     yt = youtube_dl.YoutubeDL(options)
+                    log.debug(f'Downloading from {url}.')
                     info = yt.extract_info(url)
 
                     # workaround for post-processed filenames
@@ -393,6 +399,7 @@ class SoundBoard(commands.Cog):
                 'SELECT name FROM sounds WHERE guild_id = $1 ORDER BY RANDOM() LIMIT 1',
                 ctx.guild.id
             )
+        log.debug(f'Playing random sound {name}.')
         await ctx.invoke(self.play, name, args=args)
 
     @commands.command(hidden=True)

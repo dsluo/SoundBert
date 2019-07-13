@@ -4,9 +4,7 @@ import logging
 import click
 import toml
 
-from soundbert import SoundBert
-
-log = logging.getLogger(__name__)
+import soundbert
 
 
 @click.group()
@@ -17,16 +15,24 @@ def cli():
 @cli.command()
 @click.option('--config', 'config_path', default='./settings.toml', help='Path to config file.')
 def run(config_path):
+
+    # load config
     with open(config_path, 'r') as f:
         config = toml.load(f)
 
+    # set up logging
     log_level = config['logging']['level']
     log_level = getattr(logging, log_level.upper(), None)
     if not isinstance(log_level, int):
         raise ValueError('Invalid log level')
 
+    logging.basicConfig()
+    log = logging.getLogger('soundbert')
+    log.setLevel(log_level)
+
+    # run bot
     token = config['bot'].pop('token')
-    bot = SoundBert(config)
+    bot = soundbert.SoundBert(config)
     bot.run(token)
 
 

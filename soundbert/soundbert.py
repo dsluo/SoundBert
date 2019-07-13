@@ -1,10 +1,15 @@
+import logging
+
 import asyncpg
 from discord import Message
 from discord.ext import commands
+from discord.ext.commands import ExtensionNotFound
 
 from .cogs.utils.reactions import no
 
 __all__ = ['SoundBert']
+
+log = logging.getLogger(__name__)
 
 
 async def get_prefix(bot: 'SoundBert', msg: Message):
@@ -21,20 +26,31 @@ class SoundBert(commands.Bot):
         self.config = config
         self.pool = self.loop.run_until_complete(asyncpg.create_pool(config['bot']['db_uri']))
 
-        extensions = [
+        base_extensions = [
             'soundbert.cogs.soundboard',
             'soundbert.cogs.info',
             'soundbert.cogs.settings',
-            'soundbert.cogs.admin',
-            *config['bot']['extra_cogs']
+            'soundbert.cogs.admin'
         ]
 
-        for ext in extensions:
+        log.debug('Loading base extensions.')
+        for ext in base_extensions:
             self.load_extension(ext)
 
+        log.debug('Loading extra extensions.')
+        for ext in config['bot']['extra_cogs']:
+            try:
+                self.load_extension(ext)
+            except ExtensionNotFound:
+                log.exception('Failed to load extension.')
+
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
+        log.debug(exception)
         if self.config['bot']['verbose_errors']:
             if len(exception.args) > 0:
                 await ctx.send(exception.args[0])
-            else:
-                await no(ctx)
+        else:
+            await no(ctx)
+
+    async def on_command(self, ctx: commands.Context):
+        log.debug(ctx.message)
