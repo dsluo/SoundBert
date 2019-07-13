@@ -100,9 +100,9 @@ class SoundBoard(commands.Cog):
         if volume is None:
             volume = 100
 
-        channel = ctx.author.voice.channel
-
-        if channel is None:
+        try:
+            channel = ctx.author.voice.channel
+        except AttributeError:
             raise commands.CommandError('No target channel.')
 
         log.debug('Connecting to voice channel.')
