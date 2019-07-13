@@ -179,20 +179,32 @@ class SoundBoard(commands.Cog):
                             'key':            'FFmpegExtractAudio',
                             'preferredcodec': 'mp3'
                         }],
-                        'outtmpl':           f'{ctx.guild.id}_{ctx.author.id}_{time.time()}.mp3',
+                        'outtmpl':           f'{time.time()}_%(id)s.%(ext)s',
                         'restrictfilenames': True,
                         'default_search':    'error',
                     }
                     yt = youtube_dl.YoutubeDL(options)
                     info = yt.extract_info(url)
+
+                    # workaround for post-processed filenames
+                    # https://github.com/ytdl-org/youtube-dl/issues/5710
                     filename = yt.prepare_filename(info)
-                    file = Path(filename)
+                    unprocessed = Path(filename)
+                    postprocessed = Path('.').glob(f'{unprocessed.stem}*')
+
+                    try:
+                        file = next(postprocessed)
+                    except StopIteration:
+                        raise FileNotFoundError("Couldn't find postprocessed file")
+
                     return file
 
                 try:
                     file = await self.bot.loop.run_in_executor(None, download_sound, link)
                 except youtube_dl.DownloadError:
                     raise commands.BadArgument('Malformed download link.')
+                except FileNotFoundError:
+                    raise commands.CommandError('Unable to find audio file.')
 
                 # Write response to temporary file and moves it to the /sounds directory when done.
                 # Filename = blake2 hash of file
