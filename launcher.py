@@ -31,9 +31,11 @@ def run(config_path):
     log.setLevel(log_level)
 
     # run bot
+    log.info('Starting SoundBert.')
     token = config['bot'].pop('token')
     bot = soundbert.SoundBert(config)
     bot.run(token)
+    log.info('Shutting down.')
 
 
 if __name__ == '__main__':
