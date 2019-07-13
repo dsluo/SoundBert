@@ -25,6 +25,7 @@ class SoundBert(commands.Bot):
             'soundbert.cogs.soundboard',
             'soundbert.cogs.info',
             'soundbert.cogs.settings',
+            'soundbert.cogs.admin',
             *config['bot']['extra_cogs']
         ]
 
