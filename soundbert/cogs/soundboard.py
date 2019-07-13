@@ -238,10 +238,12 @@ class SoundBoard(commands.Cog):
                 )
 
                 await conn.execute(
-                    'INSERT INTO sounds(guild_id, name, filename) VALUES ($1, $2, $3)',
+                    'INSERT INTO sounds(guild_id, name, filename, uploader, source) VALUES ($1, $2, $3, $4, $5)',
                     ctx.guild.id,
                     name.lower(),
-                    filename
+                    filename,
+                    ctx.author.id,
+                    link
                 )
                 await yes(ctx)
 
@@ -347,15 +349,15 @@ class SoundBoard(commands.Cog):
             )
 
     @commands.command()
-    async def stat(self, ctx: commands.Context, name: str):
+    async def info(self, ctx: commands.Context, name: str):
         """
-        Get stats of a sound.
+        Get info about a sound.
 
-        :param name: The sound to get stats for.
+        :param name: The sound to get info about.
         """
         async with self.bot.pool.acquire() as conn:
             sound = await conn.fetchval(
-                'SELECT (played, stopped) FROM sounds WHERE guild_id = $1 AND name = $2',
+                'SELECT (played, stopped, source, uploader) FROM sounds WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
                 name.lower()
             )
@@ -363,10 +365,21 @@ class SoundBoard(commands.Cog):
         if sound is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
-        played, stopped = sound
+        played, stopped, source, uploader_id = sound
 
-        resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
-        await ctx.send(resp)
+        embed = discord.Embed()
+        embed.title = name
+
+        if uploader_id:
+            uploader = self.bot.get_user(uploader_id) or (await self.bot.fetch_user(uploader_id))
+            embed.set_author(name=uploader.name, icon_url=uploader.avatar_url)
+            embed.add_field(name='Uploader', value=f'<@{uploader_id}>')
+        if source:
+            embed.add_field(name='Source', value=source)
+        embed.add_field(name='Played', value=played)
+        embed.add_field(name='Stopped', value=stopped)
+
+        await ctx.send(embed=embed)
 
     @commands.command()
     async def rand(self, ctx: commands.Context, *, args=None):

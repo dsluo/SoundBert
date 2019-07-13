@@ -30,7 +30,7 @@ class Info(commands.Cog):
         await ctx.send('https://github.com/dsluo/SoundBert/')
 
     @commands.command()
-    async def info(self, ctx: commands.Context):
+    async def about(self, ctx: commands.Context):
         """
         Provides some basic info about the bot.
         """
