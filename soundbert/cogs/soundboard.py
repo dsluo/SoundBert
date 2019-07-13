@@ -30,9 +30,7 @@ class SoundBoard(commands.Cog):
         if not self.sound_path.is_dir():
             self.sound_path.mkdir()
 
-    @commands.command(
-        aliases=['!', 'p']
-    )
+    @commands.command(aliases=['!', 'p'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
         Play a sound.
@@ -146,9 +144,7 @@ class SoundBoard(commands.Cog):
 
         vclient.play(source=source, after=wrapper)
 
-    @commands.command(
-        aliases=['+', 'a']
-    )
+    @commands.command(aliases=['+', 'a'])
     async def add(self, ctx: commands.Context, name: str, link: str = None):
         """
         Add a new sound to the soundboard.
@@ -237,9 +233,7 @@ class SoundBoard(commands.Cog):
                 )
                 await yes(ctx)
 
-    @commands.command(
-        aliases=['-', 'd', 'del']
-    )
+    @commands.command(aliases=['-', 'd', 'del'])
     async def delete(self, ctx: commands.Context, name: str):
         """
         Delete a sound.
@@ -266,9 +260,7 @@ class SoundBoard(commands.Cog):
         file.unlink()
         await yes(ctx)
 
-    @commands.command(
-        aliases=['~', 'r']
-    )
+    @commands.command(aliases=['~', 'r'])
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
         Rename a sound.
@@ -378,9 +370,7 @@ class SoundBoard(commands.Cog):
             )
         await ctx.invoke(self.play, name, args=args)
 
-    @commands.command(
-        hidden=True
-    )
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def id(self, ctx: commands.Context, name, guild_id=None):
         async with self.bot.pool.acquire() as conn:
@@ -426,9 +416,7 @@ class SoundBoard(commands.Cog):
         await self.unmute_sound(ctx.guild.id, name)
         await yes(ctx)
 
-    @commands.command(
-        name='last'
-    )
+    @commands.command(name='last')
     async def last_played(self, ctx: commands.Context):
         """
         Play the last sound played.
