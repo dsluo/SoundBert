@@ -33,3 +33,6 @@ class Admin(commands.Cog):
             await ctx.send('Error decoding settings file.')
         except OSError:
             await ctx.send('Could not open settings file.')
+
+def setup(bot):
+    bot.add_cog(Admin(bot))
