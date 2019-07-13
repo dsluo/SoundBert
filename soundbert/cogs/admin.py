@@ -11,7 +11,8 @@ class Admin(commands.Cog):
     def __init__(self, bot: 'SoundBert'):
         self.bot = bot
 
-    cog_check = commands.is_owner
+    async def cog_check(self, ctx: commands.Context):
+        return await self.bot.is_owner(ctx.author)
 
     @commands.command()
     async def reload_config(self, ctx: commands.Context, path=None):
@@ -33,6 +34,7 @@ class Admin(commands.Cog):
             await ctx.send('Error decoding settings file.')
         except OSError:
             await ctx.send('Could not open settings file.')
+
 
 def setup(bot):
     bot.add_cog(Admin(bot))
