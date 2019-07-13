@@ -28,6 +28,5 @@ class Settings(commands.Cog):
             )
         await yes(ctx)
 
-
 def setup(bot):
     bot.add_cog(Settings(bot))

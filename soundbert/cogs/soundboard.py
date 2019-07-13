@@ -4,7 +4,6 @@ import logging
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import aiofiles
 import discord
@@ -13,16 +12,15 @@ from discord import VoiceClient
 from discord.ext import commands
 
 from .utils.converters import DurationConverter
-from .utils.reactions import yes, no
-
+from .utils.reactions import no, yes
 from ..soundbert import SoundBert
 
 log = logging.getLogger(__name__)
 
 
 class SoundBoard(commands.Cog):
-    def __init__(self, sound_path: Path, bot: 'SoundBert'):
-        self.sound_path = sound_path.absolute()
+    def __init__(self, bot: 'SoundBert'):
+        self.sound_path = Path(bot.config['soundboard']['path'])
         self.bot = bot
 
         self.playing = {}
@@ -125,6 +123,7 @@ class SoundBoard(commands.Cog):
 
         def wrapper(error):
             try:
+                # todo: this could result in a race condition if a sound is played very soon after stopping i think
                 coro = self.playing.pop(ctx.guild.id)
                 future = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
                 try:
@@ -463,5 +462,4 @@ class SoundBoard(commands.Cog):
 
 
 def setup(bot):
-    sound_path = Path(bot.config['soundboard'].get('path', './sounds'))
-    bot.add_cog(SoundBoard(sound_path, bot))
+    bot.add_cog(SoundBoard(bot))
