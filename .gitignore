@@ -108,7 +108,8 @@ venv.bak/
 *.json
 token.txt
 config.json
-settings.ini
+settings.toml
+*.toml
 
 # generated directories
 sounds/

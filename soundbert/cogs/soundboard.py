@@ -11,11 +11,11 @@ import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 
-from cogs.utils.converters import DurationConverter
-from cogs.utils.reactions import yes, no
+from .utils.converters import DurationConverter
+from .utils.reactions import yes, no
 
 if TYPE_CHECKING:
-    from soundbert import SoundBert
+    from ..soundbert import SoundBert
 
 
 class SoundBoard(commands.Cog):
@@ -30,9 +30,7 @@ class SoundBoard(commands.Cog):
         if not self.sound_path.is_dir():
             self.sound_path.mkdir()
 
-    @commands.command(
-        aliases=['!', 'p']
-    )
+    @commands.command(aliases=['!', 'p'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
         Play a sound.
@@ -146,9 +144,7 @@ class SoundBoard(commands.Cog):
 
         vclient.play(source=source, after=wrapper)
 
-    @commands.command(
-        aliases=['+', 'a']
-    )
+    @commands.command(aliases=['+', 'a'])
     async def add(self, ctx: commands.Context, name: str, link: str = None):
         """
         Add a new sound to the soundboard.
@@ -183,20 +179,32 @@ class SoundBoard(commands.Cog):
                             'key':            'FFmpegExtractAudio',
                             'preferredcodec': 'mp3'
                         }],
-                        'outtmpl':           f'{ctx.guild.id}_{ctx.author.id}_{time.time()}.mp3',
+                        'outtmpl':           f'{time.time()}_%(id)s.%(ext)s',
                         'restrictfilenames': True,
                         'default_search':    'error',
                     }
                     yt = youtube_dl.YoutubeDL(options)
                     info = yt.extract_info(url)
+
+                    # workaround for post-processed filenames
+                    # https://github.com/ytdl-org/youtube-dl/issues/5710
                     filename = yt.prepare_filename(info)
-                    file = Path(filename)
+                    unprocessed = Path(filename)
+                    postprocessed = Path('.').glob(f'{unprocessed.stem}*')
+
+                    try:
+                        file = next(postprocessed)
+                    except StopIteration:
+                        raise FileNotFoundError("Couldn't find postprocessed file")
+
                     return file
 
                 try:
                     file = await self.bot.loop.run_in_executor(None, download_sound, link)
                 except youtube_dl.DownloadError:
                     raise commands.BadArgument('Malformed download link.')
+                except FileNotFoundError:
+                    raise commands.CommandError('Unable to find audio file.')
 
                 # Write response to temporary file and moves it to the /sounds directory when done.
                 # Filename = blake2 hash of file
@@ -230,16 +238,16 @@ class SoundBoard(commands.Cog):
                 )
 
                 await conn.execute(
-                    'INSERT INTO sounds(guild_id, name, filename) VALUES ($1, $2, $3)',
+                    'INSERT INTO sounds(guild_id, name, filename, uploader, source) VALUES ($1, $2, $3, $4, $5)',
                     ctx.guild.id,
                     name.lower(),
-                    filename
+                    filename,
+                    ctx.author.id,
+                    link
                 )
                 await yes(ctx)
 
-    @commands.command(
-        aliases=['-', 'd', 'del']
-    )
+    @commands.command(aliases=['-', 'd', 'del'])
     async def delete(self, ctx: commands.Context, name: str):
         """
         Delete a sound.
@@ -266,9 +274,7 @@ class SoundBoard(commands.Cog):
         file.unlink()
         await yes(ctx)
 
-    @commands.command(
-        aliases=['~', 'r']
-    )
+    @commands.command(aliases=['~', 'r'])
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
         Rename a sound.
@@ -343,15 +349,15 @@ class SoundBoard(commands.Cog):
             )
 
     @commands.command()
-    async def stat(self, ctx: commands.Context, name: str):
+    async def info(self, ctx: commands.Context, name: str):
         """
-        Get stats of a sound.
+        Get info about a sound.
 
-        :param name: The sound to get stats for.
+        :param name: The sound to get info about.
         """
         async with self.bot.pool.acquire() as conn:
             sound = await conn.fetchval(
-                'SELECT (played, stopped) FROM sounds WHERE guild_id = $1 AND name = $2',
+                'SELECT (played, stopped, source, uploader) FROM sounds WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
                 name.lower()
             )
@@ -359,10 +365,21 @@ class SoundBoard(commands.Cog):
         if sound is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
-        played, stopped = sound
+        played, stopped, source, uploader_id = sound
 
-        resp = f'**{name}** stats:\nPlayed {played} times.\nStopped {stopped} times.'
-        await ctx.send(resp)
+        embed = discord.Embed()
+        embed.title = name
+
+        if uploader_id:
+            uploader = self.bot.get_user(uploader_id) or (await self.bot.fetch_user(uploader_id))
+            embed.set_author(name=uploader.name, icon_url=uploader.avatar_url)
+            embed.add_field(name='Uploader', value=f'<@{uploader_id}>')
+        if source:
+            embed.add_field(name='Source', value=source)
+        embed.add_field(name='Played', value=played)
+        embed.add_field(name='Stopped', value=stopped)
+
+        await ctx.send(embed=embed)
 
     @commands.command()
     async def rand(self, ctx: commands.Context, *, args=None):
@@ -378,9 +395,7 @@ class SoundBoard(commands.Cog):
             )
         await ctx.invoke(self.play, name, args=args)
 
-    @commands.command(
-        hidden=True
-    )
+    @commands.command(hidden=True)
     @commands.is_owner()
     async def id(self, ctx: commands.Context, name, guild_id=None):
         async with self.bot.pool.acquire() as conn:
@@ -426,9 +441,7 @@ class SoundBoard(commands.Cog):
         await self.unmute_sound(ctx.guild.id, name)
         await yes(ctx)
 
-    @commands.command(
-        name='last'
-    )
+    @commands.command(name='last')
     async def last_played(self, ctx: commands.Context):
         """
         Play the last sound played.
@@ -443,5 +456,5 @@ class SoundBoard(commands.Cog):
 
 
 def setup(bot):
-    sound_path = Path(bot.config.get('sound_path', './sounds'))
+    sound_path = Path(bot.config['soundboard'].get('path', './sounds'))
     bot.add_cog(SoundBoard(sound_path, bot))

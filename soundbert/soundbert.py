@@ -1,20 +1,17 @@
-import logging
-
 import asyncpg
 from discord import Message
 from discord.ext import commands
 
-from cogs.utils.reactions import no
+from .cogs.utils.reactions import no
 
-log = logging.getLogger(__name__)
-
-VERBOSE_ERRORS = False
+__all__ = ['SoundBert']
 
 
 async def get_prefix(bot: 'SoundBert', msg: Message):
+    default_prefix = bot.config['bot'].get('default_prefix', '!')
     async with bot.pool.acquire() as conn:
         prefix = await conn.fetchval('SELECT prefix FROM guilds WHERE id = $1', msg.guild.id)
-    return commands.when_mentioned_or(prefix if prefix else '!')(bot, msg)
+    return commands.when_mentioned_or(prefix if prefix else default_prefix)(bot, msg)
 
 
 class SoundBert(commands.Bot):
@@ -22,25 +19,21 @@ class SoundBert(commands.Bot):
         super().__init__(command_prefix=get_prefix)
 
         self.config = config
-        self.pool = self.loop.run_until_complete(asyncpg.create_pool(config['db_uri']))
+        self.pool = self.loop.run_until_complete(asyncpg.create_pool(config['bot']['db_uri']))
 
         extensions = [
-            'cogs.soundboard',
-            'cogs.info',
-            'cogs.settings'
+            'soundbert.cogs.soundboard',
+            'soundbert.cogs.info',
+            'soundbert.cogs.settings',
+            *config['bot'].get('extra_cogs', [])
         ]
 
         for ext in extensions:
             self.load_extension(ext)
 
-    def run(self):
-        super(SoundBert, self).run(self.config['token'])
-
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
-        if VERBOSE_ERRORS:
+        if self.config['bot']['verbose_errors']:
             if len(exception.args) > 0:
                 await ctx.send(exception.args[0])
             else:
                 await no(ctx)
-
-        log.error('Encountered exception while executing command:', exc_info=exception)
