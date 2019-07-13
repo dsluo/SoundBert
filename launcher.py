@@ -12,8 +12,11 @@ try:
 except ImportError:
     pass
 
+@click.group()
+def cli():
+    pass
 
-@click.command()
+@cli.command()
 @click.option('--config', 'config_path', default='./settings.toml', help='Path to config file.')
 def run(config_path):
     with open(config_path, 'r') as f:
@@ -23,6 +26,5 @@ def run(config_path):
     bot = SoundBert(config)
     bot.run(token)
 
-
 if __name__ == '__main__':
-    run()
+    cli()
