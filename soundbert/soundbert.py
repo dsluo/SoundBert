@@ -8,7 +8,7 @@ __all__ = ['SoundBert']
 
 
 async def get_prefix(bot: 'SoundBert', msg: Message):
-    default_prefix = bot.config['bot'].get('default_prefix', '!')
+    default_prefix = bot.config['bot']['default_prefix']
     async with bot.pool.acquire() as conn:
         prefix = await conn.fetchval('SELECT prefix FROM guilds WHERE id = $1', msg.guild.id)
     return commands.when_mentioned_or(prefix if prefix else default_prefix)(bot, msg)
@@ -25,7 +25,7 @@ class SoundBert(commands.Bot):
             'soundbert.cogs.soundboard',
             'soundbert.cogs.info',
             'soundbert.cogs.settings',
-            *config['bot'].get('extra_cogs', [])
+            *config['bot']['extra_cogs']
         ]
 
         for ext in extensions:
