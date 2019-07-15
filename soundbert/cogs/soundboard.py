@@ -243,12 +243,13 @@ class SoundBoard(commands.Cog):
                 )
 
                 await conn.execute(
-                    'INSERT INTO sounds(guild_id, name, filename, uploader, source) VALUES ($1, $2, $3, $4, $5)',
+                    "INSERT INTO sounds(guild_id, name, filename, uploader, source, upload_time) VALUES ($1, $2, $3, $4, $5, $6)",
                     ctx.guild.id,
                     name.lower(),
                     filename,
                     ctx.author.id,
-                    link
+                    link,
+                    ctx.message.created_at
                 )
                 await yes(ctx)
 
@@ -362,7 +363,7 @@ class SoundBoard(commands.Cog):
         """
         async with self.bot.pool.acquire() as conn:
             sound = await conn.fetchval(
-                'SELECT (played, stopped, source, uploader) FROM sounds WHERE guild_id = $1 AND name = $2',
+                'SELECT (played, stopped, source, uploader, upload_time) FROM sounds WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
                 name.lower()
             )
@@ -370,7 +371,7 @@ class SoundBoard(commands.Cog):
         if sound is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
-        played, stopped, source, uploader_id = sound
+        played, stopped, source, uploader_id, upload_time = sound
 
         embed = discord.Embed()
         embed.title = name
@@ -379,6 +380,9 @@ class SoundBoard(commands.Cog):
             uploader = self.bot.get_user(uploader_id) or (await self.bot.fetch_user(uploader_id))
             embed.set_author(name=uploader.name, icon_url=uploader.avatar_url)
             embed.add_field(name='Uploader', value=f'<@{uploader_id}>')
+        if upload_time:
+            embed.set_footer(text='Uploaded at')
+            embed.timestamp = upload_time
         if source:
             embed.add_field(name='Source', value=source)
         embed.add_field(name='Played', value=played)
