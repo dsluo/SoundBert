@@ -36,7 +36,7 @@ class SoundBoard(commands.Cog):
         Play a sound.
 
         :param name: The name of the sound to play.
-        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100.
+        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
         if ctx.guild.id in self.muted and name in self.muted[ctx.guild.id]:
             await ctx.message.add_reaction('\N{SPEAKER WITH CANCELLATION STROKE}')
@@ -93,7 +93,7 @@ class SoundBoard(commands.Cog):
                         carry, mins = divmod(mins + carry, 60)
                         hours += carry
 
-                        seek = f'{hours}:{mins:02}:{secs:02}'
+                        seek = f'{hours}:{mins:02}:{secs:02}' if hours or mins or secs else None
                     except ValueError:
                         raise commands.BadArgument(f'Could not parse `{args}`.')
 
@@ -395,7 +395,7 @@ class SoundBoard(commands.Cog):
         """
         Play a random sound.
 
-        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100.
+        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
         async with self.bot.pool.acquire() as conn:
             name = await conn.fetchval(
