@@ -170,24 +170,26 @@ class SoundBoard(commands.Cog):
         """
         # Disallow duplicate names
         async with self.bot.pool.acquire() as conn:
-            exists = await conn.fetchval(
-                'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
-                ctx.guild.id,
-                name.lower()
-            )
+            async with conn.transaction():
+                exists = await conn.fetchval(
+                    'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
+                    ctx.guild.id,
+                    name.lower()
+                )
 
-            if exists:
-                raise commands.BadArgument(f'Sound named `{name}` already exists.')
+                if exists:
+                    raise commands.BadArgument(f'Sound named `{name}` already exists.')
 
-            # Resolve download url.
-            if link is None:
-                try:
-                    link = ctx.message.attachments[0].url
-                except (IndexError, KeyError):
-                    raise commands.MissingRequiredArgument('Download link or file attachment required.')
+                # Resolve download url.
+                if link is None:
+                    try:
+                        link = ctx.message.attachments[0].url
+                    except (IndexError, KeyError):
+                        raise commands.MissingRequiredArgument('Download link or file attachment required.')
 
-            # Download file
-            with ctx.typing():
+                # Download file
+                await ctx.trigger_typing()
+
                 def download_sound(url):
                     options = {
                         'format':            'bestaudio/best',
@@ -255,7 +257,7 @@ class SoundBoard(commands.Cog):
                 )
 
                 await conn.execute(
-                    "INSERT INTO sounds(guild_id, name, filename, uploader, source, upload_time) VALUES ($1, $2, $3, $4, $5, $6)",
+                    'INSERT INTO sounds(guild_id, name, filename, uploader, source, upload_time) VALUES ($1, $2, $3, $4, $5, $6)',
                     ctx.guild.id,
                     name.lower(),
                     filename,
