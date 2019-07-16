@@ -14,7 +14,7 @@ class Admin(commands.Cog):
     async def cog_check(self, ctx: commands.Context):
         return await self.bot.is_owner(ctx.author)
 
-    @commands.command()
+    @commands.command(hidden=True)
     async def reload_config(self, ctx: commands.Context, path=None):
         if path is not None:
             path = Path(path)
