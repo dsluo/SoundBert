@@ -86,8 +86,12 @@ class Clipboard(commands.Cog):
 
             if clip is None:
                 results = await self._search(ctx.guild.id, name, conn)
-                results = '\n'.join(result['name'] for result in results)
-                raise commands.BadArgument(f'Clip **{name}** does not exist. Did you mean:\n{results}')
+                if len(results) > 0:
+                    results = '\n'.join(result['name'] for result in results)
+                    raise commands.BadArgument(f'Clip **{name}** does not exist. Did you mean:\n{results}')
+                else:
+                    raise commands.BadArgument(f'Clip **{name}** does not exist.')
+
 
             await conn.execute(
                 'UPDATE clips SET pasted = pasted + 1 WHERE guild_id = $1 AND name = $2',
