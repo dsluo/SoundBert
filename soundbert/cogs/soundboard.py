@@ -168,9 +168,16 @@ class SoundBoard(commands.Cog):
         :param name: The name of the new sound.
         :param link: Download link to new sound. If omitted, command must be called in the comment of an attachment.
         """
-        # Disallow duplicate names
+        # Resolve download url.
+        if link is None:
+            try:
+                link = ctx.message.attachments[0].url
+            except (IndexError, KeyError):
+                raise commands.MissingRequiredArgument('Download link or file attachment required.')
+
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
+                # Disallow duplicate names
                 exists = await conn.fetchval(
                     'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
                     ctx.guild.id,
@@ -179,13 +186,6 @@ class SoundBoard(commands.Cog):
 
                 if exists:
                     raise commands.BadArgument(f'Sound named `{name}` already exists.')
-
-                # Resolve download url.
-                if link is None:
-                    try:
-                        link = ctx.message.attachments[0].url
-                    except (IndexError, KeyError):
-                        raise commands.MissingRequiredArgument('Download link or file attachment required.')
 
                 # Download file
                 await ctx.trigger_typing()
@@ -293,7 +293,7 @@ class SoundBoard(commands.Cog):
         file.unlink()
         await yes(ctx)
 
-    @commands.command(aliases=['~', 'r'])
+    @commands.command(aliases=['~', 're'])
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
         Rename a sound.
@@ -314,7 +314,7 @@ class SoundBoard(commands.Cog):
 
             await yes(ctx)
 
-    @commands.command()
+    @commands.command(aliases=['l'])
     async def list(self, ctx: commands.Context):
         """
         List all the sounds on the soundboard.
@@ -346,7 +346,7 @@ class SoundBoard(commands.Cog):
         if message:
             await ctx.send(message)
 
-    @commands.command()
+    @commands.command(aliases=['s'])
     async def stop(self, ctx: commands.Context):
         """
         Stop playback of the current sound.
@@ -357,7 +357,7 @@ class SoundBoard(commands.Cog):
             # nothing was playing
             pass
 
-    @commands.command()
+    @commands.command(aliases=['i'])
     async def info(self, ctx: commands.Context, name: str):
         """
         Get info about a sound.
@@ -393,7 +393,7 @@ class SoundBoard(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command()
+    @commands.command(aliases=['ra'])
     async def rand(self, ctx: commands.Context, *, args=None):
         """
         Play a random sound.
