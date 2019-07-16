@@ -411,8 +411,8 @@ class SoundBoard(commands.Cog):
         log.debug(f'Playing random sound {name}.')
         await ctx.invoke(self.play, name, args=args)
 
-    @commands.command(name='last')
-    async def last_played(self, ctx: commands.Context):
+    @commands.command()
+    async def last(self, ctx: commands.Context):
         """
         Play the last sound played.
         """
