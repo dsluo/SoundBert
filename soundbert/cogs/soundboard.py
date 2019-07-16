@@ -119,7 +119,13 @@ class SoundBoard(commands.Cog):
         async def stop():
             log.debug('Stopping playback.')
             await vclient.disconnect(force=True)
-            return name
+
+            async with self.bot.pool.acquire() as conn:
+                await conn.execute(
+                    'UPDATE sounds SET stopped = stopped + 1 WHERE guild_id = $1 AND name = $2',
+                    ctx.guild.id,
+                    name.lower()
+                )
 
         def wrapper(error):
             try:
@@ -147,6 +153,19 @@ class SoundBoard(commands.Cog):
 
         log.debug('Stopping playback.')
         vclient.play(source=source, after=wrapper)
+
+        await ctx.message.add_reaction('\N{OCTAGONAL SIGN}')
+
+    @commands.Cog.listener()
+    async def on_reaction_add(self, reaction, user):
+        if user.id == self.bot.user.id:
+            return
+        if reaction.emoji == '\N{OCTAGONAL SIGN}':
+            try:
+                await self.playing.pop(reaction.message.guild.id)
+            except KeyError:
+                # sound already stopped.
+                pass
 
     @commands.command(aliases=['+', 'a'])
     async def add(self, ctx: commands.Context, name: str, link: str = None):
@@ -344,15 +363,7 @@ class SoundBoard(commands.Cog):
         """
         Stop playback of the current sound.
         """
-        coro = self.playing.pop(ctx.guild.id)
-        name = await coro
-
-        async with self.bot.pool.acquire() as conn:
-            await conn.execute(
-                'UPDATE sounds SET stopped = stopped + 1 WHERE guild_id = $1 AND name = $2',
-                ctx.guild.id,
-                name.lower()
-            )
+        await self.playing.pop(ctx.guild.id)
 
     @commands.command()
     async def info(self, ctx: commands.Context, name: str):
