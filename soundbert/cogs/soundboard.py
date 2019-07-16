@@ -11,8 +11,7 @@ import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 
-from .utils.converters import DurationConverter
-from .utils.reactions import no, yes
+from .utils.reactions import yes
 from ..soundbert import SoundBert
 
 log = logging.getLogger(__name__)
@@ -32,7 +31,7 @@ class SoundBoard(commands.Cog):
     @commands.command(aliases=['!', 'p'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
-        Play a sound.
+        Play a sound. Click the 🛑 to stop playback.
 
         :param name: The name of the sound to play.
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
@@ -44,7 +43,6 @@ class SoundBoard(commands.Cog):
             channel = ctx.author.voice.channel
         except AttributeError:
             raise commands.CommandError('No target channel.')
-
 
         async with self.bot.pool.acquire() as conn:
             filename = await conn.fetchval(
@@ -186,7 +184,7 @@ class SoundBoard(commands.Cog):
                 try:
                     link = ctx.message.attachments[0].url
                 except (IndexError, KeyError):
-                    raise commands.BadArgument('Download link or file attachment required.')
+                    raise commands.MissingRequiredArgument('Download link or file attachment required.')
 
             # Download file
             with ctx.typing():
@@ -214,7 +212,7 @@ class SoundBoard(commands.Cog):
                     try:
                         file = next(postprocessed)
                     except StopIteration:
-                        raise FileNotFoundError("Couldn't find postprocessed file")
+                        raise FileNotFoundError("Couldn't find postprocessed file.")
 
                     return file
 
@@ -243,7 +241,7 @@ class SoundBoard(commands.Cog):
                     if not server_dir.exists():
                         server_dir.mkdir()
                 except OSError:
-                    raise commands.BadArgument('Error while creating guild directory.')
+                    raise commands.CommandError('Error while creating guild directory.')
 
                 try:
                     file.rename(server_dir / filename)
@@ -275,20 +273,19 @@ class SoundBoard(commands.Cog):
         :param name: The name of the sound to delete.
         """
         async with self.bot.pool.acquire() as conn:
-            async with conn.transaction():
-                filename = await conn.fetchval(
-                    'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+            filename = await conn.fetchval(
+                'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+                ctx.guild.id,
+                name.lower()
+            )
+            if filename is None:
+                raise commands.BadArgument(f'Sound **{name}** does not exist.')
+            else:
+                await conn.execute(
+                    'DELETE FROM sounds WHERE guild_id = $1 AND filename = $2',
                     ctx.guild.id,
-                    name.lower()
+                    filename
                 )
-                if filename is None:
-                    raise commands.BadArgument(f'Sound **{name}** does not exist.')
-                else:
-                    await conn.execute(
-                        'DELETE FROM sounds WHERE guild_id = $1 AND filename = $2',
-                        ctx.guild.id,
-                        filename
-                    )
 
         file = self.sound_path / str(ctx.guild.id) / filename
         file.unlink()
@@ -303,21 +300,20 @@ class SoundBoard(commands.Cog):
         :param new_name: The new name.
         """
         async with self.bot.pool.acquire() as conn:
-            async with conn.transaction():
-                exists = await conn.fetchval(
-                    'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
+            exists = await conn.fetchval(
+                'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
+                ctx.guild.id,
+                name.lower()
+            )
+            if not exists:
+                raise commands.BadArgument(f'Sound **{name}** does not exist.')
+            else:
+                await conn.execute(
+                    'UPDATE sounds SET name = $3 WHERE guild_id = $1 AND name = $2',
                     ctx.guild.id,
-                    name.lower()
+                    name.lower(),
+                    new_name.lower()
                 )
-                if not exists:
-                    raise commands.BadArgument(f'Sound **{name}** does not exist.')
-                else:
-                    await conn.execute(
-                        'UPDATE sounds SET name = $3 WHERE guild_id = $1 AND name = $2',
-                        ctx.guild.id,
-                        name.lower(),
-                        new_name.lower()
-                    )
 
         await yes(ctx)
 
@@ -358,7 +354,11 @@ class SoundBoard(commands.Cog):
         """
         Stop playback of the current sound.
         """
-        await self.playing.pop(ctx.guild.id)
+        try:
+            await self.playing.pop(ctx.guild.id)
+        except KeyError:
+            # nothing was playing
+            pass
 
     @commands.command()
     async def info(self, ctx: commands.Context, name: str):
@@ -411,18 +411,6 @@ class SoundBoard(commands.Cog):
         log.debug(f'Playing random sound {name}.')
         await ctx.invoke(self.play, name, args=args)
 
-    @commands.command(hidden=True)
-    @commands.is_owner()
-    async def id(self, ctx: commands.Context, name, guild_id=None):
-        async with self.bot.pool.acquire() as conn:
-            filename = await conn.fetchval(
-                'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
-                guild_id or ctx.guild.id,
-                name.lower()
-            )
-
-        await ctx.send(str(filename))
-
     @commands.command(name='last')
     async def last_played(self, ctx: commands.Context):
         """
@@ -431,8 +419,7 @@ class SoundBoard(commands.Cog):
         try:
             name, args = self.last_played[ctx.guild.id]
         except KeyError:
-            await no(ctx)
-            return
+            raise commands.CommandError('No sounds played yet.')
 
         await ctx.invoke(self.play, name, args=args)
 
