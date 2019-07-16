@@ -40,6 +40,12 @@ class SoundBoard(commands.Cog):
         if not name:
             raise commands.BadArgument('Invalid sound name.')
 
+        try:
+            channel = ctx.author.voice.channel
+        except AttributeError:
+            raise commands.CommandError('No target channel.')
+
+
         async with self.bot.pool.acquire() as conn:
             filename = await conn.fetchval(
                 'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
@@ -93,11 +99,6 @@ class SoundBoard(commands.Cog):
 
         if volume is None:
             volume = 100
-
-        try:
-            channel = ctx.author.voice.channel
-        except AttributeError:
-            raise commands.CommandError('No target channel.')
 
         log.debug('Connecting to voice channel.')
         vclient: VoiceClient = ctx.guild.voice_client or await channel.connect()
