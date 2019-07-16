@@ -51,10 +51,10 @@ class SoundBoard(commands.Cog):
                 name.lower()
             )
 
-        if filename is None:
-            results = await self._search(ctx.guild.id, name, conn)
-            results = '\n'.join(results)
-            raise commands.BadArgument(f'Sound **{name}** does not exist. Did you mean:\n{results}')
+            if filename is None:
+                results = await self._search(ctx.guild.id, name, conn)
+                results = '\n'.join(results)
+                raise commands.BadArgument(f'Sound **{name}** does not exist. Did you mean:\n{results}')
 
         file = self.sound_path / str(ctx.guild.id) / filename
 
