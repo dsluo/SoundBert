@@ -10,10 +10,12 @@ class Settings(commands.Cog):
 
     @commands.group()
     async def settings(self, ctx: commands.Context):
-        pass
+        """
+        Set bot server settings.
+        """
 
-    @settings.command(name='prefix')
-    async def set_prefix(self, ctx: commands.Context, prefix):
+    @settings.command()
+    async def prefix(self, ctx: commands.Context, prefix):
         """
         Set the prefix for this server (the symbol that specifies that a message is a command,
         e.g. !play -> -play).
