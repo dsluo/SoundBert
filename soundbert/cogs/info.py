@@ -9,7 +9,8 @@ class Info(commands.Cog):
     def __init__(self, bot: 'SoundBert'):
         self.bot = bot
 
-        self.startup = datetime.now()
+        if not hasattr(bot, 'startup'):
+            self.bot.startup = datetime.now()
 
     @commands.command()
     async def invite(self, ctx: commands.Context):
@@ -41,7 +42,7 @@ class Info(commands.Cog):
         """
         Displays time since the last restart.
         """
-        time = datetime.now() - self.startup
+        time = datetime.now() - self.bot.startup
 
         days = time.days
         minutes, seconds = divmod(time.seconds, 60)
