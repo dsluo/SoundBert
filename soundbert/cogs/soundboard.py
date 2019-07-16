@@ -139,7 +139,7 @@ class SoundBoard(commands.Cog):
             await conn.execute(
                 'UPDATE sounds SET played = played + 1 WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
-                name
+                name.lower()
             )
 
         self.last_played[ctx.guild.id] = (name, args)
