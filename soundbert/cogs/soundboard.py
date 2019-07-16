@@ -52,7 +52,9 @@ class SoundBoard(commands.Cog):
             )
 
         if filename is None:
-            raise commands.BadArgument(f'Sound **{name}** does not exist.')
+            results = await self._search(ctx.guild.id, name, conn)
+            results = '\n'.join(results)
+            raise commands.BadArgument(f'Sound **{name}** does not exist. Did you mean:\n{results}')
 
         file = self.sound_path / str(ctx.guild.id) / filename
 
@@ -427,15 +429,25 @@ class SoundBoard(commands.Cog):
         """
 
         async with self.bot.pool.acquire() as conn:
-            results = await conn.fetch("SELECT name FROM sounds WHERE name ILIKE ('%' || $1 || '%')", query)
+            results = await self._search(ctx.guild.id, query, conn)
 
         if not results:
             await ctx.send('No results found.')
         else:
             results = [record['name'] for record in results]
-            results.sort()
             response = f'Found {len(results)} result{"s" if len(results) != 1 else ""}.\n' + '\n'.join(results)
             await ctx.send(response)
+
+    async def _search(self, guild_id, query, connection, threshold=0.1, limit=10):
+        await connection.execute(f'SET pg_trgm.similarity_threshold = {threshold};')
+        results = await connection.fetch(
+            'SELECT name FROM sounds WHERE guild_id = $1 AND name % $2 ORDER BY similarity(name, $2) DESC LIMIT $3',
+            guild_id,
+            query,
+            limit
+        )
+
+        return results
 
 
 def setup(bot):
