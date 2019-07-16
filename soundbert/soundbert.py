@@ -50,11 +50,14 @@ class SoundBert(commands.Bot):
             f'{ctx.author.name} executed {ctx.message.content}, but encountered exception:\n'
             f'{exception}'
         )
-        if self.config['bot']['verbose_errors']:
-            if len(exception.args) > 0:
-                await ctx.send(exception.args[0])
-        else:
-            await no(ctx)
+        await no(ctx)
+        if len(exception.args) > 0:
+            msg = await ctx.send(exception.args[0])
+            try:
+                delay = int(exception.args[1])
+            except (IndexError, ValueError):
+                delay = 60
+            await msg.delete(delay=delay)
 
     async def on_command(self, ctx: commands.Context):
         log.debug(
