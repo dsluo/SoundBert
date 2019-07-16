@@ -464,6 +464,23 @@ class SoundBoard(commands.Cog):
 
         await ctx.invoke(self.play, name, args=args)
 
+    @commands.command()
+    async def search(self, ctx: commands.Context, query: str):
+        """
+        Search for a sound.
+        """
+
+        async with self.bot.pool.acquire() as conn:
+            results = await conn.fetch("SELECT name FROM sounds WHERE name ILIKE ('%' || $1 || '%')", query)
+
+        if not results:
+            await ctx.send('No results found.')
+        else:
+            results = [record['name'] for record in results]
+            results.sort()
+            response = f'Found {len(results)} result{"s" if len(results) != 1 else ""}.\n' + '\n'.join(results)
+            await ctx.send(response)
+
 
 def setup(bot):
     bot.add_cog(SoundBoard(bot))
