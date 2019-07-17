@@ -31,7 +31,7 @@ class SoundBoard(commands.Cog):
     @commands.command(aliases=['!', 'p'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
-        Play a sound. Click the 🛑 to stop playback.
+        Play a sound.
 
         :param name: The name of the sound to play.
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
