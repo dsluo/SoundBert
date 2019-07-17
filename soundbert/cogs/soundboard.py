@@ -152,19 +152,6 @@ class SoundBoard(commands.Cog):
         log.debug('Stopping playback.')
         vclient.play(source=source, after=wrapper)
 
-        await ctx.message.add_reaction('\N{OCTAGONAL SIGN}')
-
-    @commands.Cog.listener()
-    async def on_reaction_add(self, reaction, user):
-        if user.id == self.bot.user.id:
-            return
-        if reaction.emoji == '\N{OCTAGONAL SIGN}':
-            try:
-                await self.playing.pop(reaction.message.guild.id)
-            except KeyError:
-                # sound already stopped.
-                pass
-
     @commands.command(aliases=['+', 'a'])
     async def add(self, ctx: commands.Context, name: str, link: str = None):
         """
@@ -451,44 +438,6 @@ class SoundBoard(commands.Cog):
         )
 
         return results
-
-    @commands.command()
-    async def menu(self, ctx: commands.Context):
-        # noinspection PyDictDuplicateKeys
-        reaction_map = {
-            '\N{OCTAGONAL SIGN}':                                        self.stop,
-            '\N{TWISTED RIGHTWARDS ARROWS}':                             self.rand,
-            '\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS}': self.last,
-            '\N{INPUT SYMBOL FOR LATIN CAPITAL LETTERS}':                self.list
-        }
-
-        for reaction in reaction_map:
-            await ctx.message.add_reaction(reaction)
-
-        def check(reaction, user):
-            if user is None or user.id == self.bot.user.id:
-                return False
-            if reaction.message.id != ctx.message.id:
-                return False
-            if reaction.emoji not in reaction_map:
-                return False
-            return True
-
-        while True:
-            try:
-                reaction, user = await self.bot.wait_for('reaction_add', check=check, timeout=120)
-            except asyncio.TimeoutError:
-                break
-
-            try:
-                await reaction.remove(user)
-            except:
-                pass
-
-            command = reaction_map[reaction.emoji]
-            await ctx.invoke(command)
-
-        await ctx.message.clear_reactions()
 
 
 def setup(bot):
