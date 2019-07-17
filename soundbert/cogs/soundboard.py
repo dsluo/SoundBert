@@ -54,11 +54,10 @@ class SoundBoard(commands.Cog):
             if filename is None:
                 results = await self._search(ctx.guild.id, name, conn)
                 if len(results) > 0:
-                    results = '\n'.join(result['name'] for result in  results)
+                    results = '\n'.join(result['name'] for result in results)
                     raise commands.BadArgument(f'Sound **{name}** does not exist. Did you mean:\n{results}')
                 else:
                     raise commands.BadArgument(f'Sound **{name}** does not exist.')
-
 
         file = self.sound_path / str(ctx.guild.id) / filename
 
@@ -452,6 +451,44 @@ class SoundBoard(commands.Cog):
         )
 
         return results
+
+    @commands.command()
+    async def menu(self, ctx: commands.Context):
+        # noinspection PyDictDuplicateKeys
+        reaction_map = {
+            '\N{OCTAGONAL SIGN}':                                        self.stop,
+            '\N{TWISTED RIGHTWARDS ARROWS}':                             self.rand,
+            '\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS}': self.last,
+            '\N{INPUT SYMBOL FOR LATIN CAPITAL LETTERS}':                self.list
+        }
+
+        for reaction in reaction_map:
+            await ctx.message.add_reaction(reaction)
+
+        def check(reaction, user):
+            if user is None or user.id == self.bot.user.id:
+                return False
+            if reaction.message.id != ctx.message.id:
+                return False
+            if reaction.emoji not in reaction_map:
+                return False
+            return True
+
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', check=check, timeout=120)
+            except asyncio.TimeoutError:
+                break
+
+            try:
+                await reaction.remove(user)
+            except:
+                pass
+
+            command = reaction_map[reaction.emoji]
+            await ctx.invoke(command)
+
+        await ctx.message.clear_reactions()
 
 
 def setup(bot):

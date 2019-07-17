@@ -18,7 +18,7 @@ class Info(commands.Cog):
         Get the invite link for this bot.
         """
         await ctx.send(
-            f'https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=0&scope=bot'
+            f'https://discordapp.com/api/oauth2/authorize?client_id={self.bot.user.id}&permissions=3172416&scope=bot'
         )
 
     @commands.command()

@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from collections import OrderedDict
 
@@ -91,7 +92,6 @@ class Clipboard(commands.Cog):
                     raise commands.BadArgument(f'Clip **{name}** does not exist. Did you mean:\n{results}')
                 else:
                     raise commands.BadArgument(f'Clip **{name}** does not exist.')
-
 
             await conn.execute(
                 'UPDATE clips SET pasted = pasted + 1 WHERE guild_id = $1 AND name = $2',
@@ -258,6 +258,43 @@ class Clipboard(commands.Cog):
         )
 
         return results
+
+    @clipboard.command()
+    async def menu(self, ctx: commands.Context):
+        # noinspection PyDictDuplicateKeys
+        reaction_map = {
+            '\N{TWISTED RIGHTWARDS ARROWS}':                             self.rand,
+            '\N{CLOCKWISE RIGHTWARDS AND LEFTWARDS OPEN CIRCLE ARROWS}': self.last,
+            '\N{INPUT SYMBOL FOR LATIN CAPITAL LETTERS}':                self.list
+        }
+
+        for reaction in reaction_map:
+            await ctx.message.add_reaction(reaction)
+
+        def check(reaction, user):
+            if user is None or user.id == self.bot.user.id:
+                return False
+            if reaction.message.id != ctx.message.id:
+                return False
+            if reaction.emoji not in reaction_map:
+                return False
+            return True
+
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for('reaction_add', check=check, timeout=120)
+            except asyncio.TimeoutError:
+                break
+
+            try:
+                await reaction.remove(user)
+            except:
+                pass
+
+            command = reaction_map[reaction.emoji]
+            await ctx.invoke(command)
+
+        await ctx.message.clear_reactions()
 
 
 def setup(bot):
