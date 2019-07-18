@@ -165,7 +165,7 @@ class SoundBoard(commands.Cog):
             try:
                 link = ctx.message.attachments[0].url
             except (IndexError, KeyError):
-                raise commands.MissingRequiredArgument('Download link or file attachment required.')
+                raise commands.BadArgument('Download link or file attachment required.')
 
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():

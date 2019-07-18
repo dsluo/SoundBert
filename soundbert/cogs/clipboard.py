@@ -37,7 +37,7 @@ class Clipboard(commands.Cog):
             try:
                 content = ctx.message.attachment[0].url
             except (IndexError, KeyError):
-                raise commands.MissingRequiredArgument('Text content or attachment required.')
+                raise commands.BadArgument('Text content or attachment required.')
 
         async with self.bot.pool.acquire() as conn:
             async with conn.transaction():
