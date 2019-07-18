@@ -46,10 +46,11 @@ class SoundBert(commands.Bot):
                 log.exception('Failed to load extension.')
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
-        log.debug(
+        log.exception(
             f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
             f'{ctx.author.name} executed {ctx.message.content}, but encountered exception:\n'
-            f'{exception}'
+            f'{exception}',
+            exc_info=exception
         )
         await no(ctx)
         if len(exception.args) > 0:
