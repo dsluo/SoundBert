@@ -294,6 +294,15 @@ class SoundBoard(commands.Cog):
         :param new_name: The new name.
         """
         async with self.bot.pool.acquire() as conn:
+            new_name_exists = await conn.execute(
+                'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 and name = $2)',
+                ctx.guild.id,
+                new_name.lower()
+            )
+
+            if new_name_exists:
+                raise commands.BadArgument(f'There is already a sound named **{name}**.')
+
             result = await conn.execute(
                 'UPDATE sounds SET name = $3 WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
