@@ -7,14 +7,14 @@ from .utils.reactions import yes
 from ..soundbert import SoundBert
 
 
-class Admin(commands.Cog):
+class Admin(commands.Cog, command_attrs=dict(hidden=True)):
     def __init__(self, bot: 'SoundBert'):
         self.bot = bot
 
     async def cog_check(self, ctx: commands.Context):
         return await self.bot.is_owner(ctx.author)
 
-    @commands.command(hidden=True)
+    @commands.command()
     async def reload_config(self, ctx: commands.Context, path=None):
         if path is not None:
             path = Path(path)
