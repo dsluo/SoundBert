@@ -17,7 +17,11 @@ Install SoundBert with `pip`:
 1. Install the system requirements.
 2. Install SoundBert and its dependencies with:
     ```commandline
-    pip install git+https://github.com/dsluo/SoundBert.git@master
+    pip install git+https://github.com/dsluo/SoundBert.git@master#egg=soundbert
+    ```
+    Optionally on Unix systems, install `uvloop` for a faster event loop:
+    ```commandline
+    pip install git+https://github.com/dsluo/SoundBert.git@master#egg=soundbert[uvloop]
     ```
 3. Set up PostgreSQL database with a user and corresponding database.
 4. Create a file called `settings.toml`, structured as below:
