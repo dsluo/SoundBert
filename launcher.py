@@ -81,21 +81,30 @@ def migrate(obj):
 
         migrations = sorted(Path('migrations').glob('*.sql'), key=lambda x: x.name)
 
-        for migration in migrations:
-            id, description = migration.stem.split('_', maxsplit=1)
-            id = int(id)
-            if id <= current:
-                log.debug(f'Skipping migration {id}: {description}.')
-                continue
+        applied = 0
+        skipped = 0
 
-            with migration.open('r') as f:
-                sql = f.read()
+        try:
+            for migration in migrations:
+                id, description = migration.stem.split('_', maxsplit=1)
+                id = int(id)
+                if id <= current:
+                    log.debug(f'Skipping migration {id}: {description}.')
+                    continue
 
-            async with conn.transaction():
-                await conn.execute(sql)
-                await conn.execute('INSERT INTO migrations VALUES ($1, $2, $3)', id, description, datetime.now())
-            log.debug(f'Applied migration {id}: {description}.')
-        await conn.close()
+                with migration.open('r') as f:
+                    sql = f.read()
+
+                async with conn.transaction():
+                    await conn.execute(sql)
+                    await conn.execute('INSERT INTO migrations VALUES ($1, $2, $3)', id, description, datetime.now())
+                log.debug(f'Applied migration {id}: {description}.')
+        except asyncpg.PostgresError:
+            log.exception(f'Error executing migration {id}: {description}.')
+        else:
+            log.info(f'Applied {applied} and skipped {skipped} migrations.')
+        finally:
+            await conn.close()
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(do_migration())
