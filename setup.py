@@ -3,7 +3,7 @@ from distutils.core import setup
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
-extra_requires = {
+extras_require = {
     'uvloop': ['uvloop==0.13.0']
 }
 
@@ -20,7 +20,7 @@ setup(
     long_description_content_type='text/markdown',
     include_package_data=True,
     install_requires=requirements,
-    extra_requires=extra_requires,
+    extras_require=extras_require,
     python_requires='>=3.7',
     py_modules=['soundbert'],
     entry_points='''
