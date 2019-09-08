@@ -29,7 +29,6 @@ Install SoundBert with `pip`:
     [bot]
     token = "<discord token here>"
     default_prefix = "!"
-    verbose_errors = false
     db_uri = "<postgres database uri>"
     extra_cogs = []
 
