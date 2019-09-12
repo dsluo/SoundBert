@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup, find_packages
 
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
@@ -22,9 +22,10 @@ setup(
     install_requires=requirements,
     extras_require=extras_require,
     python_requires='>=3.7',
-    py_modules=['soundbert'],
-    entry_points='''
-        [console_scripts]
-        soundbert=soundbert:cli
-    '''
+    packages=find_packages(),
+    entry_points={
+        'console_scripts': [
+            'soundbert = soundbert:cli'
+        ]
+    }
 )
