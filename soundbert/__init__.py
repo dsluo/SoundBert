@@ -20,13 +20,6 @@ __all__ = ['SoundBert']
 def cli(ctx, config_path):
     ctx.ensure_object(dict)
 
-    try:
-        import uvloop
-
-        asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
-    except ImportError:
-        pass
-
     # load config
     with open(config_path, 'r') as f:
         config = toml.load(f)
