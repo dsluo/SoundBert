@@ -1,4 +1,4 @@
 include README.md
 include LICENSE
 include requirements.txt
-include soundbert/cogs/*.sql
+include soundbert/migrations/*.sql
