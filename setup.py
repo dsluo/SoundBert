@@ -14,7 +14,7 @@ setup(
     name='soundbert',
     author='dsluo',
     url='https://https://github.com/dsluo/SoundBert',
-    version='0.1.0',
+    version='0.1.1',
     description='A soundboard bot for Discord.',
     long_description=readme,
     long_description_content_type='text/markdown',
