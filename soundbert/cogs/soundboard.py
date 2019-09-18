@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import logging
+import shutil
 import time
 from collections import OrderedDict
 from pathlib import Path
@@ -238,7 +239,7 @@ class SoundBoard(commands.Cog):
                     raise commands.CommandError('Error while creating guild directory.')
 
                 try:
-                    file.rename(server_dir / filename)
+                    shutil.move(str(file), str(server_dir / filename))
                 except FileExistsError:
                     file.unlink()
                     raise commands.BadArgument('Sound already exists.')
