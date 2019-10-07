@@ -78,8 +78,8 @@ class SoundBoard(commands.Cog):
                 elif speed is None and arg.startswith('s'):
                     try:
                         speed = int(arg[1:-1] if arg.endswith('%') else arg[1:])
-                        if not (50 <= speed <= 200):
-                            raise commands.BadArgument('Speed must be between 50% and 200%.')
+                        if speed < 0:
+                            raise commands.BadArgument('Speed cannot be less than 0%.')
                     except ValueError:
                         raise commands.BadArgument(f'Could not parse `{args}`.')
                 elif arg.startswith('t'):
