@@ -1,7 +1,12 @@
 import asyncio
 import importlib.resources
+import itertools
 import logging
+import platform
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import List
 
 import asyncpg
 import click
@@ -10,6 +15,12 @@ import toml
 from .soundbert import *
 
 __all__ = ['SoundBert']
+
+if platform.system() == 'Windows':
+    loop = asyncio.ProactorEventLoop()
+else:
+    loop = asyncio.get_event_loop()
+asyncio.set_event_loop(loop)
 
 
 @click.group()
@@ -81,24 +92,38 @@ def migrate(obj):
             log.debug(f'Created migration table.')
 
         with importlib.resources.path('soundbert', 'migrations') as migrations_path:
-            migrations = sorted(migrations_path.glob('*.sql'), key=lambda x: x.name)
+            sys.path.append(str(migrations_path))  # for importing Python migrations.
+
+            sql = migrations_path.glob('*.sql')
+            python = migrations_path.glob('*.py')
+            migrations: List[Path] = sorted(itertools.chain(sql, python), key=lambda x: x.name)
 
             applied = 0
             skipped = 0
 
             try:
                 for migration in migrations:
-                    id, description = migration.stem.split('_', maxsplit=1)
+                    id, description = migration.stem.lstrip('v').split('_', maxsplit=1)
                     id = int(id)
                     if current is not None and id <= current:
                         log.debug(f'Skipping migration {id}: {description}.')
                         skipped += 1
                         continue
 
-                    with migration.open('r') as f:
-                        sql = f.read()
+                    if migration.suffix == '.sql':
+                        with migration.open('r') as f:
+                            sql = f.read()
+                            async with conn.transaction():
+                                await conn.execute(sql)
+                                await conn.execute('INSERT INTO migrations VALUES ($1, $2, $3)', id, description,
+                                                   datetime.now())
+                    elif migration.suffix == '.py':
+                        module_name = migration.stem
+                        migration_module = importlib.import_module(module_name)
+                        migration_func = getattr(migration_module, 'do_migration')
+
                         async with conn.transaction():
-                            await conn.execute(sql)
+                            await migration_func(conn, config)
                             await conn.execute('INSERT INTO migrations VALUES ($1, $2, $3)', id, description,
                                                datetime.now())
 

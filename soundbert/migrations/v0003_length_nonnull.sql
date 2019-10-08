@@ -1,0 +1,1 @@
+ALTER TABLE sounds ALTER COLUMN length SET NOT NULL;

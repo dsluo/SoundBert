@@ -12,6 +12,7 @@ import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 
+from .utils.humantime import humanduration, TimeUnits
 from .utils.reactions import yes
 from ..soundbert import SoundBert
 
@@ -28,6 +29,20 @@ class SoundBoard(commands.Cog):
 
         if not self.sound_path.is_dir():
             self.sound_path.mkdir()
+
+    @staticmethod
+    async def get_length(file: Path):
+        args = '-show_entries format=duration -of default=noprint_wrappers=1:nokey=1'.split() + [str(file)]
+        proc = await asyncio.create_subprocess_exec(
+            'ffprobe', *args,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.DEVNULL
+        )
+        out = await proc.stdout.read()
+        length = out.decode().strip()
+        await proc.wait()
+
+        return float(length)
 
     @commands.command(aliases=['!', 'p'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
@@ -218,6 +233,8 @@ class SoundBoard(commands.Cog):
                 except FileNotFoundError:
                     raise commands.CommandError('Unable to find audio file.')
 
+                length = await self.get_length(file)
+
                 # Write response to temporary file and moves it to the /sounds directory when done.
                 # Filename = blake2 hash of file
                 hash = hashlib.blake2b()
@@ -250,13 +267,14 @@ class SoundBoard(commands.Cog):
                 )
 
                 await conn.execute(
-                    'INSERT INTO sounds(guild_id, name, filename, uploader, source, upload_time) VALUES ($1, $2, $3, $4, $5, $6)',
+                    'INSERT INTO sounds(guild_id, name, filename, uploader, source, upload_time, length) VALUES ($1, $2, $3, $4, $5, $6, $7)',
                     ctx.guild.id,
                     name.lower(),
                     filename,
                     ctx.author.id,
                     link,
-                    ctx.message.created_at
+                    ctx.message.created_at,
+                    length
                 )
                 await yes(ctx)
 
@@ -368,7 +386,7 @@ class SoundBoard(commands.Cog):
         """
         async with self.bot.pool.acquire() as conn:
             sound = await conn.fetchval(
-                'SELECT (played, stopped, source, uploader, upload_time) FROM sounds WHERE guild_id = $1 AND name = $2',
+                'SELECT (played, stopped, source, uploader, upload_time, length) FROM sounds WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
                 name.lower()
             )
@@ -376,7 +394,7 @@ class SoundBoard(commands.Cog):
         if sound is None:
             raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
-        played, stopped, source, uploader_id, upload_time = sound
+        played, stopped, source, uploader_id, upload_time, length = sound
 
         embed = discord.Embed()
         embed.title = name
@@ -392,6 +410,7 @@ class SoundBoard(commands.Cog):
             embed.add_field(name='Source', value=source)
         embed.add_field(name='Played', value=played)
         embed.add_field(name='Stopped', value=stopped)
+        embed.add_field(name='Length', value=humanduration(length, TimeUnits.MILLISECONDS))
 
         await ctx.send(embed=embed)
 
