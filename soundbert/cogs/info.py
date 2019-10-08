@@ -2,6 +2,7 @@ from datetime import datetime
 
 from discord.ext import commands
 
+from .utils.humantime import humanduration
 from ..soundbert import SoundBert
 
 
@@ -44,14 +45,8 @@ class Info(commands.Cog):
         """
         time = datetime.now() - self.bot.startup
 
-        days = time.days
-        minutes, seconds = divmod(time.seconds, 60)
-        hours, minutes = divmod(minutes, 60)
-        await ctx.send('Uptime: '
-                       f'**{days}** day{"" if days == 1 else "s"} '
-                       f'**{hours}** hour{"" if hours == 1 else "s"} '
-                       f'**{minutes}** minute{"" if minutes == 1 else "s"} '
-                       f'**{seconds}** second{"" if seconds == 1 else "s"}.')
+        uptime = humanduration(time.total_seconds())
+        await ctx.send(f'Uptime: {uptime}.')
 
 
 def setup(bot):
