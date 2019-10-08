@@ -44,7 +44,7 @@ class SoundBoard(commands.Cog):
 
         return float(length)
 
-    @commands.command(aliases=['!', 'p'])
+    @commands.command(aliases=['!'])
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
         Play a sound.
@@ -168,7 +168,7 @@ class SoundBoard(commands.Cog):
         log.debug('Stopping playback.')
         vclient.play(source=source, after=wrapper)
 
-    @commands.command(aliases=['+', 'a'])
+    @commands.command()
     async def add(self, ctx: commands.Context, name: str, link: str = None):
         """
         Add a new sound to the soundboard.
@@ -278,7 +278,7 @@ class SoundBoard(commands.Cog):
                 )
                 await yes(ctx)
 
-    @commands.command(aliases=['-', 'd', 'del'])
+    @commands.command(aliases=['del', 'rm'])
     async def delete(self, ctx: commands.Context, name: str):
         """
         Delete a sound.
@@ -304,7 +304,7 @@ class SoundBoard(commands.Cog):
         file.unlink()
         await yes(ctx)
 
-    @commands.command(aliases=['~', 're'])
+    @commands.command(aliases=['mv'])
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
         Rename a sound.
@@ -334,7 +334,7 @@ class SoundBoard(commands.Cog):
 
             await yes(ctx)
 
-    @commands.command(aliases=['l'])
+    @commands.command(aliases=['ls'])
     async def list(self, ctx: commands.Context):
         """
         List all the sounds on the soundboard.
@@ -366,7 +366,7 @@ class SoundBoard(commands.Cog):
         if message:
             await ctx.send(message)
 
-    @commands.command(aliases=['s'])
+    @commands.command()
     async def stop(self, ctx: commands.Context):
         """
         Stop playback of the current sound.
@@ -377,7 +377,7 @@ class SoundBoard(commands.Cog):
             # nothing was playing
             pass
 
-    @commands.command(aliases=['i'])
+    @commands.command(aliases=['stat'])
     async def info(self, ctx: commands.Context, name: str):
         """
         Get info about a sound.
@@ -414,7 +414,7 @@ class SoundBoard(commands.Cog):
 
         await ctx.send(embed=embed)
 
-    @commands.command(aliases=['ra'])
+    @commands.command()
     async def rand(self, ctx: commands.Context, *, args=None):
         """
         Play a random sound.
@@ -441,7 +441,7 @@ class SoundBoard(commands.Cog):
 
         await ctx.invoke(self.play, name, args=args)
 
-    @commands.command()
+    @commands.command(aliases=['find'])
     async def search(self, ctx: commands.Context, query: str):
         """
         Search for a sound.
