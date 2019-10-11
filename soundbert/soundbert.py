@@ -28,7 +28,6 @@ class SoundBert(commands.Bot):
 
         base_extensions = [
             'soundbert.cogs.soundboard',
-            'soundbert.cogs.clipboard',
             'soundbert.cogs.info',
             'soundbert.cogs.settings',
             'soundbert.cogs.admin'
