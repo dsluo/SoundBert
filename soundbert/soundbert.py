@@ -1,7 +1,7 @@
 import logging
 
 import asyncpg
-from discord import Message
+from discord import Message, Guild
 from discord.ext import commands
 from discord.ext.commands import ExtensionNotFound
 
@@ -65,3 +65,7 @@ class SoundBert(commands.Bot):
             f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
             f'{ctx.author.name} executed {ctx.message.content}'
         )
+
+    async def on_guild_join(self, guild: Guild):
+        async with self.pool.acquire() as conn:
+            await conn.execute('INSERT INTO guilds(id) VALUES ($1)', guild.id)
