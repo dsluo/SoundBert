@@ -19,6 +19,50 @@ from ..soundbert import SoundBert
 log = logging.getLogger(__name__)
 
 
+async def is_soundmaster(ctx: commands.Context):
+    if ctx.bot.is_owner(ctx.author):
+        return True
+    if ctx.guild.owner == ctx.author:
+        return True
+    if ctx.author.guild_permissions.manage_guild:
+        return True
+
+    async with ctx.bot.pool.acquire() as conn:
+        soundmaster = await conn.fetchval(
+            'SELECT soundmaster FROM guilds WHERE id = $1',
+            ctx.guild.id
+        )
+
+    if soundmaster is None:
+        return True
+    role = discord.utils.get(ctx.author.roles, id=soundmaster)
+    if role is not None:
+        return True
+
+    soundmaster = ctx.guild.get_role(soundmaster)
+    raise commands.CommandError(f'You need the `@{soundmaster}` role to manage sounds.')
+
+
+async def is_soundplayer(ctx: commands.Context):
+    if await is_soundmaster(ctx):
+        return True
+
+    async with ctx.bot.pool.acquire() as conn:
+        soundplayer = await conn.fetchval(
+            'SELECT soundplayer FROM guilds WHERE id = $1',
+            ctx.guild.id
+        )
+
+    if soundplayer is None:
+        return True
+    role = discord.utils.get(ctx.author.roles, id=soundplayer)
+    if role is not None:
+        return True
+
+    soundplayer = ctx.guild.get_role(soundplayer)
+    raise commands.CommandError(f'You need the `@{soundplayer}` role to play sounds.')
+
+
 class SoundBoard(commands.Cog):
     def __init__(self, bot: 'SoundBert'):
         self.sound_path = Path(bot.config['soundboard']['path'])
@@ -45,6 +89,7 @@ class SoundBoard(commands.Cog):
         return float(length)
 
     @commands.command(aliases=['!'])
+    @commands.check(is_soundplayer)
     async def play(self, ctx: commands.Context, name: str, *, args=None):
         """
         Play a sound.
@@ -169,6 +214,7 @@ class SoundBoard(commands.Cog):
         vclient.play(source=source, after=wrapper)
 
     @commands.command()
+    @commands.check(is_soundmaster)
     async def add(self, ctx: commands.Context, name: str, link: str = None):
         """
         Add a new sound to the soundboard.
@@ -279,6 +325,7 @@ class SoundBoard(commands.Cog):
                 await yes(ctx)
 
     @commands.command(aliases=['del', 'rm'])
+    @commands.check(is_soundmaster)
     async def delete(self, ctx: commands.Context, name: str):
         """
         Delete a sound.
@@ -305,6 +352,7 @@ class SoundBoard(commands.Cog):
         await yes(ctx)
 
     @commands.command(aliases=['mv'])
+    @commands.check(is_soundmaster)
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
         Rename a sound.
@@ -335,6 +383,7 @@ class SoundBoard(commands.Cog):
             await yes(ctx)
 
     @commands.command(aliases=['ls'])
+    @commands.check(is_soundplayer)
     async def list(self, ctx: commands.Context):
         """
         List all the sounds on the soundboard.
@@ -367,6 +416,7 @@ class SoundBoard(commands.Cog):
             await ctx.send(message)
 
     @commands.command()
+    @commands.check(is_soundplayer)
     async def stop(self, ctx: commands.Context):
         """
         Stop playback of the current sound.
@@ -378,6 +428,7 @@ class SoundBoard(commands.Cog):
             pass
 
     @commands.command(aliases=['stat'])
+    @commands.check(is_soundplayer)
     async def info(self, ctx: commands.Context, name: str):
         """
         Get info about a sound.
@@ -415,6 +466,7 @@ class SoundBoard(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command()
+    @commands.check(is_soundplayer)
     async def rand(self, ctx: commands.Context, *, args=None):
         """
         Play a random sound.
@@ -430,6 +482,7 @@ class SoundBoard(commands.Cog):
         await ctx.invoke(self.play, name, args=args)
 
     @commands.command()
+    @commands.check(is_soundplayer)
     async def last(self, ctx: commands.Context):
         """
         Play the last sound played.
@@ -442,6 +495,7 @@ class SoundBoard(commands.Cog):
         await ctx.invoke(self.play, name, args=args)
 
     @commands.command(aliases=['find'])
+    @commands.check(is_soundplayer)
     async def search(self, ctx: commands.Context, query: str):
         """
         Search for a sound.
