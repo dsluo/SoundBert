@@ -6,7 +6,7 @@ from ..soundbert import SoundBert
 
 
 async def is_botmaster(ctx: commands.Context):
-    if ctx.bot.is_owner(ctx.author):
+    if await ctx.bot.is_owner(ctx.author):
         return True
     if ctx.guild.owner == ctx.author:
         return True

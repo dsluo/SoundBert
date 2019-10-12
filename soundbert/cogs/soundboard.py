@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 
 async def is_soundmaster(ctx: commands.Context):
-    if ctx.bot.is_owner(ctx.author):
+    if await ctx.bot.is_owner(ctx.author):
         return True
     if ctx.guild.owner == ctx.author:
         return True
