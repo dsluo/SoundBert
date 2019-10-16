@@ -11,3 +11,7 @@
     `!settings soundplayer <role>` respectively. Soundmasters can add/remove
     sounds, and soundplayers can list sounds, play sounds, etc. By default,
     anyone can do anything.
+
+## 0.3.1
+
+* Temporary fix for Discord voice connect issues using v1.3.0a (dev version) of `discord.py`
