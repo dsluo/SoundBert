@@ -22,8 +22,7 @@ RUN apk update \
     python3-dev \
     musl-dev \
     libffi-dev \
-    make \
-    git
+    make
 
 # install soundbert python dependencies
 COPY ./requirements.txt /tmp/soundbert

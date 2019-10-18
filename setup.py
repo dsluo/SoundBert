@@ -1,27 +1,7 @@
 from setuptools import setup, find_packages
 
-# with open('requirements.txt') as f:
-#     requirements = f.read().splitlines()
-requirements = [
-    'aiofiles==0.4.0',
-    'aiohttp==3.5.4',
-    'async-timeout==3.0.1',
-    'asyncpg==0.19.0',
-    'attrs==19.3.0',
-    'cffi==1.13.0',
-    'chardet==3.0.4',
-    'Click==7.0',
-    'discord.py==1.3.0a2107+gc6539bb',
-    'idna==2.8',
-    'multidict==4.5.2',
-    'pycparser==2.19',
-    'PyNaCl==1.3.0',
-    'six==1.12.0',
-    'toml==0.10.0',
-    'websockets==6.0',
-    'yarl==1.3.0',
-    'youtube-dl==2019.10.16',
-]
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
 
 extras_require = {
     'uvloop': ['uvloop==0.13.0']

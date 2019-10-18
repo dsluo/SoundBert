@@ -6,7 +6,7 @@ attrs==19.3.0
 cffi==1.13.0
 chardet==3.0.4
 Click==7.0
-git+https://github.com/Rapptz/discord.py.git@c6539bbc615e22a59455179b8526dc6ae264c2a4#egg=discord.py[voice]
+discord.py==1.2.4
 idna==2.8
 multidict==4.5.2
 pycparser==2.19

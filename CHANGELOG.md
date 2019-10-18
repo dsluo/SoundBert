@@ -1,6 +1,8 @@
 # Changelog
 
 * [0.3.0](#0.3.0)
+* [0.3.1](#0.3.1)
+* [0.3.2](#0.3.2)
 
 ## 0.3.0
 
@@ -14,4 +16,8 @@
 
 ## 0.3.1
 
-* Temporary fix for Discord voice connect issues using v1.3.0a (dev version) of `discord.py`
+* Temporary fix for Discord voice connect issues using v1.3.0a (dev version) of `discord.py`.
+
+## 0.3.2
+
+* Permanent fix for Discord voice connect issues using v1.2.4 (production version) of `discord.py`.
