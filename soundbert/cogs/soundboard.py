@@ -7,6 +7,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 import aiofiles
+import asyncpg
 import discord
 import youtube_dl
 from discord import VoiceClient
@@ -107,7 +108,11 @@ class SoundBoard(commands.Cog):
 
         async with self.bot.pool.acquire() as conn:
             filename = await conn.fetchval(
-                'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+                '''
+                SELECT s.filename
+                FROM sounds s INNER JOIN sound_names sn ON s.id = sn.sound_id
+                WHERE sn.guild_id = $1 AND sn.name = $2
+                ''',
                 ctx.guild.id,
                 name.lower()
             )
@@ -181,7 +186,12 @@ class SoundBoard(commands.Cog):
 
             async with self.bot.pool.acquire() as conn:
                 await conn.execute(
-                    'UPDATE sounds SET stopped = stopped + 1 WHERE guild_id = $1 AND name = $2',
+                    '''
+                    UPDATE sounds s
+                    SET stopped = stopped + 1
+                    FROM sound_names sn
+                    WHERE s.id = sn.id AND sn.guild_id = $1 AND sn.name = $2
+                    ''',
                     ctx.guild.id,
                     name.lower()
                 )
@@ -203,7 +213,7 @@ class SoundBoard(commands.Cog):
 
         async with self.bot.pool.acquire() as conn:
             await conn.execute(
-                'UPDATE sounds SET played = played + 1 WHERE guild_id = $1 AND name = $2',
+                'UPDATE sounds SET played = played + 1 FROM sound_names WHERE guild_id = $1 AND name = $2',
                 ctx.guild.id,
                 name.lower()
             )
@@ -230,99 +240,138 @@ class SoundBoard(commands.Cog):
                 raise commands.BadArgument('Download link or file attachment required.')
 
         async with self.bot.pool.acquire() as conn:
+            # Disallow duplicate names
+            exists = await conn.fetchval(
+                'SELECT EXISTS(SELECT 1 FROM sound_names WHERE guild_id = $1 AND name = $2)',
+                ctx.guild.id,
+                name.lower()
+            )
+
+            if exists:
+                raise commands.BadArgument(
+                    f'Sound named `{name}` already exists.')
+
+            # Download file
+            await ctx.trigger_typing()
+
+            def download_sound(url):
+                options = {
+                    'format':            'bestaudio/best',
+                    'postprocessors':    [{
+                        'key':            'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3'
+                    }],
+                    'outtmpl':           f'{time.time()}_%(id)s.%(ext)s',
+                    'restrictfilenames': True,
+                    'default_search':    'error',
+                }
+                yt = youtube_dl.YoutubeDL(options)
+                log.debug(f'Downloading from {url}.')
+                info = yt.extract_info(url)
+
+                # workaround for post-processed filenames
+                # https://github.com/ytdl-org/youtube-dl/issues/5710
+                filename = yt.prepare_filename(info)
+                unprocessed = Path(filename)
+                postprocessed = Path('.').glob(f'{unprocessed.stem}*')
+
+                try:
+                    file = next(postprocessed)
+                except StopIteration:
+                    raise FileNotFoundError("Couldn't find postprocessed file.")
+
+                return file
+
+            try:
+                file = await self.bot.loop.run_in_executor(None, download_sound,
+                                                           link)
+            except youtube_dl.DownloadError:
+                raise commands.BadArgument('Malformed download link.')
+            except FileNotFoundError:
+                raise commands.CommandError('Unable to find audio file.')
+
+            length = await self.get_length(file)
+
+            # Write response to temporary file and moves it to the /sounds directory when done.
+            # Filename = blake2 hash of file
+            hash = hashlib.blake2b()
+            async with aiofiles.open(file, 'rb') as f:
+                while True:
+                    chunk = await f.read(8192)
+                    if not chunk:
+                        break
+                    hash.update(chunk)
+
+            filename = hash.hexdigest().upper()
+
+            try:
+                server_dir = self.sound_path / str(ctx.guild.id)
+
+                if not server_dir.exists():
+                    server_dir.mkdir()
+            except OSError:
+                raise commands.CommandError(
+                    'Error while creating guild directory.')
+
+            try:
+                shutil.move(str(file), str(server_dir / filename))
+            except FileExistsError:
+                file.unlink()
+                raise commands.BadArgument('Sound already exists.')
+
             async with conn.transaction():
-                # Disallow duplicate names
-                exists = await conn.fetchval(
-                    'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 AND name = $2)',
-                    ctx.guild.id,
-                    name.lower()
-                )
-
-                if exists:
-                    raise commands.BadArgument(f'Sound named `{name}` already exists.')
-
-                # Download file
-                await ctx.trigger_typing()
-
-                def download_sound(url):
-                    options = {
-                        'format':            'bestaudio/best',
-                        'postprocessors':    [{
-                            'key':            'FFmpegExtractAudio',
-                            'preferredcodec': 'mp3'
-                        }],
-                        'outtmpl':           f'{time.time()}_%(id)s.%(ext)s',
-                        'restrictfilenames': True,
-                        'default_search':    'error',
-                    }
-                    yt = youtube_dl.YoutubeDL(options)
-                    log.debug(f'Downloading from {url}.')
-                    info = yt.extract_info(url)
-
-                    # workaround for post-processed filenames
-                    # https://github.com/ytdl-org/youtube-dl/issues/5710
-                    filename = yt.prepare_filename(info)
-                    unprocessed = Path(filename)
-                    postprocessed = Path('.').glob(f'{unprocessed.stem}*')
-
-                    try:
-                        file = next(postprocessed)
-                    except StopIteration:
-                        raise FileNotFoundError("Couldn't find postprocessed file.")
-
-                    return file
-
-                try:
-                    file = await self.bot.loop.run_in_executor(None, download_sound, link)
-                except youtube_dl.DownloadError:
-                    raise commands.BadArgument('Malformed download link.')
-                except FileNotFoundError:
-                    raise commands.CommandError('Unable to find audio file.')
-
-                length = await self.get_length(file)
-
-                # Write response to temporary file and moves it to the /sounds directory when done.
-                # Filename = blake2 hash of file
-                hash = hashlib.blake2b()
-                async with aiofiles.open(file, 'rb') as f:
-                    while True:
-                        chunk = await f.read(8192)
-                        if not chunk:
-                            break
-                        hash.update(chunk)
-
-                filename = hash.hexdigest().upper()
-
-                try:
-                    server_dir = self.sound_path / str(ctx.guild.id)
-
-                    if not server_dir.exists():
-                        server_dir.mkdir()
-                except OSError:
-                    raise commands.CommandError('Error while creating guild directory.')
-
-                try:
-                    shutil.move(str(file), str(server_dir / filename))
-                except FileExistsError:
-                    file.unlink()
-                    raise commands.BadArgument('Sound already exists.')
-
-                await conn.execute(
-                    'INSERT INTO guilds(id) VALUES ($1) ON CONFLICT DO NOTHING',
-                    ctx.guild.id
-                )
-
-                await conn.execute(
-                    'INSERT INTO sounds(guild_id, name, filename, uploader, source, upload_time, length) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-                    ctx.guild.id,
-                    name.lower(),
+                sound_id = await conn.fetchval(
+                    '''
+                    INSERT INTO sounds(filename, uploader, source, upload_time, length)
+                    VALUES ($1, $2, $3, $4, $5)
+                    RETURNING id
+                    ''',
                     filename,
                     ctx.author.id,
                     link,
                     ctx.message.created_at,
                     length
                 )
-                await yes(ctx)
+
+                await conn.execute(
+                    'INSERT INTO sound_names(sound_id, guild_id, name) VALUES ($1, $2, $3)',
+                    sound_id,
+                    ctx.guild.id,
+                    name.lower(),
+                )
+        await yes(ctx)
+
+    @commands.command()
+    @commands.check(is_soundmaster)
+    async def alias(self, ctx: commands.Context, name: str, alias: str):
+        """
+        Allows sounds to be played by a different name.
+
+        :param name: The sound to alias.
+        :param alias: The alias to assign
+        """
+        async with self.bot.pool.acquire() as conn:
+            try:
+                exists = await conn.fetchval(
+                    '''
+                    INSERT INTO sound_names(sound_id, guild_id, name, is_alias)
+                        SELECT sound_id, $1, $3, TRUE
+                        FROM sound_names
+                        WHERE guild_id = $1 AND name = $2
+                    RETURNING sound_id
+                    ''',
+                    ctx.guild.id,
+                    name,
+                    alias
+                )
+
+                if exists is not None:
+                    await yes(ctx)
+                else:
+                    raise commands.BadArgument(f'Sound or alias **{name}** does not exist.')
+            except asyncpg.UniqueViolationError:
+                raise commands.BadArgument(f'Sound or alias **{alias}** already exists.')
+
 
     @commands.command(aliases=['del', 'rm'])
     @commands.check(is_soundmaster)
@@ -334,7 +383,10 @@ class SoundBoard(commands.Cog):
         """
         async with self.bot.pool.acquire() as conn:
             filename = await conn.fetchval(
-                'SELECT filename FROM sounds WHERE guild_id = $1 AND name = $2',
+                '''
+                SELECT filename
+                FROM sounds s INNER JOIN sound_names sn ON s.id = sn.sound_id
+                WHERE sn.guild_id = $1 AND sn.name = $2''',
                 ctx.guild.id,
                 name.lower()
             )
@@ -342,7 +394,11 @@ class SoundBoard(commands.Cog):
                 raise commands.BadArgument(f'Sound **{name}** does not exist.')
             else:
                 await conn.execute(
-                    'DELETE FROM sounds WHERE guild_id = $1 AND filename = $2',
+                    '''
+                    DELETE FROM sounds 
+                    USING sound_names
+                    WHERE guild_id = $1 AND filename = $2 AND sound_id = sounds.id
+                    ''',
                     ctx.guild.id,
                     filename
                 )
@@ -355,32 +411,30 @@ class SoundBoard(commands.Cog):
     @commands.check(is_soundmaster)
     async def rename(self, ctx: commands.Context, name: str, new_name: str):
         """
-        Rename a sound.
+        Rename a sound or alias.
 
-        :param name: The name of the sound to rename.
+        :param name: The name of the sound/alias to rename.
         :param new_name: The new name.
         """
         async with self.bot.pool.acquire() as conn:
-            new_name_exists = await conn.execute(
-                'SELECT EXISTS(SELECT 1 FROM sounds WHERE guild_id = $1 and name = $2)',
-                ctx.guild.id,
-                new_name.lower()
-            )
+            try:
+                exists = await conn.fetchval(
+                    'UPDATE sound_names SET name = $3 WHERE guild_id = $1 AND name = $2 RETURNING id',
+                    ctx.guild.id,
+                    name,
+                    new_name
+                )
+                if exists is not None:
+                    await yes(ctx)
+                else:
+                    raise commands.BadArgument(
+                        f"Sound or alias **{name}** doesn't exist"
+                    )
+            except asyncpg.UniqueViolationError:
+                raise commands.BadArgument(
+                    f'Sound or alias **{new_name}** already exists.'
+                )
 
-            if new_name_exists:
-                raise commands.BadArgument(f'There is already a sound named **{name}**.')
-
-            result = await conn.execute(
-                'UPDATE sounds SET name = $3 WHERE guild_id = $1 AND name = $2',
-                ctx.guild.id,
-                name.lower(),
-                new_name.lower()
-            )
-
-            if result == 'UPDATE 0':
-                raise commands.BadArgument(f'Sound **{name}** does not exist.')
-
-            await yes(ctx)
 
     @commands.command(aliases=['ls'])
     @commands.check(is_soundplayer)
@@ -389,7 +443,10 @@ class SoundBoard(commands.Cog):
         List all the sounds on the soundboard.
         """
         async with self.bot.pool.acquire() as conn:
-            sounds = await conn.fetch('SELECT name FROM sounds WHERE guild_id = $1 ORDER BY name', ctx.guild.id)
+            sounds = await conn.fetch(
+                'SELECT name FROM sound_names WHERE guild_id = $1 AND NOT is_alias ORDER BY name',
+                ctx.guild.id
+            )
         if len(sounds) == 0:
             message = 'No sounds yet.'
         else:
@@ -437,15 +494,29 @@ class SoundBoard(commands.Cog):
         """
         async with self.bot.pool.acquire() as conn:
             sound = await conn.fetchval(
-                'SELECT (played, stopped, source, uploader, upload_time, length) FROM sounds WHERE guild_id = $1 AND name = $2',
+                '''
+                SELECT (sound_id, played, stopped, source, uploader, upload_time, length) 
+                FROM sounds s INNER JOIN sound_names sn ON s.id = sn.sound_id 
+                WHERE sn.guild_id = $1 AND sn.name = $2
+                ''',
                 ctx.guild.id,
                 name.lower()
             )
 
-        if sound is None:
-            raise commands.BadArgument(f'Sound **{name}** does not exist.')
+            if sound is None:
+                raise commands.BadArgument(f'Sound **{name}** does not exist.')
 
-        played, stopped, source, uploader_id, upload_time, length = sound
+            id, played, stopped, source, uploader_id, upload_time, length = sound
+
+            names = [
+                record['name']
+                for record in await conn.fetch(
+                    'SELECT name FROM sound_names WHERE sound_id = $1 ORDER BY is_alias, name',
+                    id
+                )
+            ]
+
+            name, *aliases = names
 
         embed = discord.Embed()
         embed.title = name
@@ -462,6 +533,8 @@ class SoundBoard(commands.Cog):
         embed.add_field(name='Played', value=played)
         embed.add_field(name='Stopped', value=stopped)
         embed.add_field(name='Length', value=humanduration(length, TimeUnits.MILLISECONDS))
+        if aliases:
+            embed.add_field(name='Aliases', value=', '.join(aliases))
 
         await ctx.send(embed=embed)
 
@@ -475,7 +548,7 @@ class SoundBoard(commands.Cog):
         """
         async with self.bot.pool.acquire() as conn:
             name = await conn.fetchval(
-                'SELECT name FROM sounds WHERE guild_id = $1 ORDER BY RANDOM() LIMIT 1',
+                'SELECT name FROM sound_names WHERE guild_id = $1 AND NOT is_alias ORDER BY RANDOM() LIMIT 1',
                 ctx.guild.id
             )
         log.debug(f'Playing random sound {name}.')
@@ -507,18 +580,52 @@ class SoundBoard(commands.Cog):
         if not results:
             await ctx.send('No results found.')
         else:
-            results = [record['name'] for record in results]
             response = f'Found {len(results)} result{"s" if len(results) != 1 else ""}.\n' + '\n'.join(results)
             await ctx.send(response)
 
-    async def _search(self, guild_id, query, connection, threshold=0.1, limit=10):
+    async def _search(self, guild_id, query, connection, alias=None, threshold=0.1, limit=10):
+        """
+        Search for a sound.
+
+        :param guild_id: The guild ID.
+        :param query: The sound to search.
+        :param connection: The database connection.
+        :param alias: True for only aliases, False for no aliases, None for any.
+        :param threshold: The similarity threshold.
+        :param limit: Maximum number of results to produce.
+        :return:
+        """
         await connection.execute(f'SET pg_trgm.similarity_threshold = {threshold};')
-        results = await connection.fetch(
-            'SELECT name FROM sounds WHERE guild_id = $1 AND name % $2 ORDER BY similarity(name, $2) DESC LIMIT $3',
-            guild_id,
-            query,
-            limit
-        )
+
+        if alias is None:
+            results = await connection.fetch(
+                '''
+                SELECT name
+                FROM sound_names
+                WHERE guild_id = $1 AND name % $2
+                ORDER BY similarity(name, $2) DESC
+                LIMIT $3
+                ''',
+                guild_id,
+                query,
+                limit,
+            )
+        else:
+            results = await connection.fetch(
+                '''
+                SELECT name
+                FROM sound_names
+                WHERE guild_id = $1 AND is_alias = $4 AND name % $2
+                ORDER BY similarity(name, $2) DESC
+                LIMIT $3
+                ''',
+                guild_id,
+                query,
+                limit,
+                alias
+            )
+
+        results = [record['name'] for record in results]
 
         return results
 

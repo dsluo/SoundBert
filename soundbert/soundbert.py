@@ -24,7 +24,7 @@ class SoundBert(commands.Bot):
         super().__init__(command_prefix=get_prefix)
 
         self.config = config
-        self.pool = self.loop.run_until_complete(asyncpg.create_pool(config['bot']['db_uri']))
+        self.pool: asyncpg.pool.Pool = self.loop.run_until_complete(asyncpg.create_pool(config['bot']['db_uri']))
 
         base_extensions = [
             'soundbert.cogs.soundboard',
