@@ -70,7 +70,6 @@ class SoundBoard(commands.Cog):
         self.bot = bot
 
         self.playing = {}
-        self.last_played = {}
 
         if not self.sound_path.is_dir():
             self.sound_path.mkdir()
@@ -217,8 +216,6 @@ class SoundBoard(commands.Cog):
                 ctx.guild.id,
                 name.lower()
             )
-
-        self.last_played[ctx.guild.id] = (name, args)
 
         log.debug('Stopping playback.')
         vclient.play(source=source, after=wrapper)
@@ -548,19 +545,6 @@ class SoundBoard(commands.Cog):
                 ctx.guild.id
             )
         log.debug(f'Playing random sound {name}.')
-        await ctx.invoke(self.play, name, args=args)
-
-    @commands.command()
-    @commands.check(is_soundplayer)
-    async def last(self, ctx: commands.Context):
-        """
-        Play the last sound played.
-        """
-        try:
-            name, args = self.last_played[ctx.guild.id]
-        except KeyError:
-            raise commands.CommandError('No sounds played yet.')
-
         await ctx.invoke(self.play, name, args=args)
 
     @commands.command(aliases=['find'])
