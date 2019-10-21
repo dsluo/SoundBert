@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import platform
 
 import asyncpg
 from discord import Message, Guild
@@ -21,6 +23,7 @@ async def get_prefix(bot: 'SoundBert', msg: Message):
 
 class SoundBert(commands.Bot):
     def __init__(self, config):
+        self._ensure_event_loop()
         super().__init__(command_prefix=get_prefix)
 
         self.config = config
@@ -43,6 +46,20 @@ class SoundBert(commands.Bot):
                 self.load_extension(ext)
             except ExtensionNotFound:
                 log.exception('Failed to load extension.')
+
+
+    @staticmethod
+    def _ensure_event_loop():
+        if platform.system() == 'Windows':
+            loop = asyncio.ProactorEventLoop()
+            asyncio.set_event_loop(loop)
+        else:
+            try:
+                import uvloop
+
+                asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+            except ImportError:
+                pass
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
         log.exception(
