@@ -3,7 +3,7 @@ from pathlib import Path
 
 import asyncpg
 
-from soundbert.cogs.soundboard import SoundBoard
+from soundbert.cogs.soundboard.soundboard import SoundBoard
 
 
 async def do_migration(conn: asyncpg.Connection, config):

@@ -13,55 +13,13 @@ import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 
-from .utils.humantime import humanduration, TimeUnits
-from .utils.reactions import yes
-from ..soundbert import SoundBert
+from . import exceptions
+from .checks import is_soundmaster, is_soundplayer
+from ..utils.humantime import humanduration, TimeUnits
+from ..utils.reactions import yes
+from ...soundbert import SoundBert
 
 log = logging.getLogger(__name__)
-
-
-async def is_soundmaster(ctx: commands.Context):
-    if await ctx.bot.is_owner(ctx.author):
-        return True
-    if ctx.guild.owner == ctx.author:
-        return True
-    if ctx.author.guild_permissions.manage_guild:
-        return True
-
-    async with ctx.bot.pool.acquire() as conn:
-        soundmaster = await conn.fetchval(
-            'SELECT soundmaster FROM guilds WHERE id = $1',
-            ctx.guild.id
-        )
-
-    if soundmaster is None:
-        return True
-    role = discord.utils.get(ctx.author.roles, id=soundmaster)
-    if role is not None:
-        return True
-
-    soundmaster = ctx.guild.get_role(soundmaster)
-    raise commands.CommandError(f'You need the `@{soundmaster}` role to manage sounds.')
-
-
-async def is_soundplayer(ctx: commands.Context):
-    if await is_soundmaster(ctx):
-        return True
-
-    async with ctx.bot.pool.acquire() as conn:
-        soundplayer = await conn.fetchval(
-            'SELECT soundplayer FROM guilds WHERE id = $1',
-            ctx.guild.id
-        )
-
-    if soundplayer is None:
-        return True
-    role = discord.utils.get(ctx.author.roles, id=soundplayer)
-    if role is not None:
-        return True
-
-    soundplayer = ctx.guild.get_role(soundplayer)
-    raise commands.CommandError(f'You need the `@{soundplayer}` role to play sounds.')
 
 
 class SoundBoard(commands.Cog):
@@ -97,13 +55,10 @@ class SoundBoard(commands.Cog):
         :param name: The name of the sound to play.
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
-        if not name:
-            raise commands.BadArgument('Invalid sound name.')
-
         try:
             channel = ctx.author.voice.channel
         except AttributeError:
-            raise commands.CommandError('No target channel.')
+            raise exceptions.NoChannel()
 
         async with self.bot.pool.acquire() as conn:
             filename = await conn.fetchval(
@@ -120,9 +75,9 @@ class SoundBoard(commands.Cog):
                 results = await self._search(ctx.guild.id, name, conn)
                 if len(results) > 0:
                     results = '\n'.join(result['name'] for result in results)
-                    raise commands.BadArgument(f'Sound **{name}** does not exist. Did you mean:\n{results}')
+                    raise exceptions.SoundDoesNotExist(name, results)
                 else:
-                    raise commands.BadArgument(f'Sound **{name}** does not exist.')
+                    raise exceptions.SoundDoesNotExist(name)
 
         file = self.sound_path / str(ctx.guild.id) / filename
 
@@ -136,16 +91,16 @@ class SoundBoard(commands.Cog):
                     try:
                         volume = int(arg[1:-1] if arg.endswith('%') else arg[1:])
                         if volume < 0:
-                            raise commands.BadArgument('Volume cannot be less than 0%.')
+                            raise exceptions.NegativeVolume()
                     except ValueError:
-                        raise commands.BadArgument(f'Could not parse `{args}`.')
+                        raise exceptions.BadPlaybackArgs(args)
                 elif speed is None and arg.startswith('s'):
                     try:
                         speed = int(arg[1:-1] if arg.endswith('%') else arg[1:])
                         if speed < 0:
-                            raise commands.BadArgument('Speed cannot be less than 0%.')
+                            raise exceptions.NegativeSpeed()
                     except ValueError:
-                        raise commands.BadArgument(f'Could not parse `{args}`.')
+                        raise exceptions.BadPlaybackArgs(args)
                 elif arg.startswith('t'):
                     try:
                         split = args[1:].split(':', maxsplit=2)
@@ -163,7 +118,7 @@ class SoundBoard(commands.Cog):
 
                         seek = f'{hours}:{mins:02}:{secs:02}' if hours or mins or secs else None
                     except ValueError:
-                        raise commands.BadArgument(f'Could not parse `{args}`.')
+                        raise exceptions.BadPlaybackArgs(args)
 
         if volume is None:
             volume = 100
@@ -234,7 +189,7 @@ class SoundBoard(commands.Cog):
             try:
                 link = ctx.message.attachments[0].url
             except (IndexError, KeyError):
-                raise commands.BadArgument('Download link or file attachment required.')
+                raise exceptions.NoDownload()
 
         async with self.bot.pool.acquire() as conn:
             # Disallow duplicate names
@@ -245,8 +200,7 @@ class SoundBoard(commands.Cog):
             )
 
             if exists:
-                raise commands.BadArgument(
-                    f'Sound named `{name}` already exists.')
+                raise exceptions.SoundExists(name)
 
             # Download file
             await ctx.trigger_typing()
@@ -282,10 +236,8 @@ class SoundBoard(commands.Cog):
             try:
                 file = await self.bot.loop.run_in_executor(None, download_sound,
                                                            link)
-            except youtube_dl.DownloadError:
-                raise commands.BadArgument('Malformed download link.')
-            except FileNotFoundError:
-                raise commands.CommandError('Unable to find audio file.')
+            except (youtube_dl.DownloadError, FileNotFoundError):
+                raise exceptions.DownloadError()
 
             length = await self.get_length(file)
 
@@ -310,7 +262,7 @@ class SoundBoard(commands.Cog):
                 shutil.move(str(file), str(server_dir / filename))
             except FileExistsError:
                 file.unlink()
-                raise commands.BadArgument('Sound already exists.')
+                raise exceptions.SoundExists(name)
 
             async with conn.transaction():
                 sound_id = await conn.fetchval(
@@ -361,10 +313,9 @@ class SoundBoard(commands.Cog):
                 if exists is not None:
                     await yes(ctx)
                 else:
-                    raise commands.BadArgument(f'Sound or alias **{name}** does not exist.')
+                    raise exceptions.SoundDoesNotExist(name)
             except asyncpg.UniqueViolationError:
-                raise commands.BadArgument(f'Sound or alias **{alias}** already exists.')
-
+                raise exceptions.SoundExists(alias)
 
     @commands.command(aliases=['del', 'rm'])
     @commands.check(is_soundmaster)
@@ -384,7 +335,7 @@ class SoundBoard(commands.Cog):
                 name.lower()
             )
             if filename is None:
-                raise commands.BadArgument(f'Sound **{name}** does not exist.')
+                raise exceptions.SoundDoesNotExist(name)
             else:
                 await conn.execute(
                     '''
@@ -420,14 +371,9 @@ class SoundBoard(commands.Cog):
                 if exists is not None:
                     await yes(ctx)
                 else:
-                    raise commands.BadArgument(
-                        f"Sound or alias **{name}** doesn't exist"
-                    )
+                    raise exceptions.SoundDoesNotExist(name)
             except asyncpg.UniqueViolationError:
-                raise commands.BadArgument(
-                    f'Sound or alias **{new_name}** already exists.'
-                )
-
+                raise exceptions.SoundExists(new_name)
 
     @commands.command(aliases=['ls'])
     @commands.check(is_soundplayer)
@@ -497,7 +443,7 @@ class SoundBoard(commands.Cog):
             )
 
             if sound is None:
-                raise commands.BadArgument(f'Sound **{name}** does not exist.')
+                raise exceptions.SoundDoesNotExist(name)
 
             id, played, stopped, source, uploader_id, upload_time, length = sound
 
@@ -608,7 +554,3 @@ class SoundBoard(commands.Cog):
         results = [record['name'] for record in results]
 
         return results
-
-
-def setup(bot):
-    bot.add_cog(SoundBoard(bot))
