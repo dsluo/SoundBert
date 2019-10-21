@@ -1,17 +1,17 @@
 from discord.ext import commands
 
 
-class NotSoundmaster(commands.BadArgument):
+class NotSoundmaster(commands.MissingRole):
     def __init__(self, soundmaster_role):
         super(NotSoundmaster, self).__init__(f'You need the `@{soundmaster_role}` role to manage sounds.')
 
 
-class NotSoundplayer(commands.BadArgument):
+class NotSoundplayer(commands.MissingRole):
     def __init__(self, soundplayer_role):
         super(NotSoundplayer, self).__init__(f'You need the `@{soundplayer_role}` role to play sounds.')
 
 
-class NoChannel(commands.CommandError):
+class NoChannel(commands.UserInputError):
     def __init__(self):
         super(NoChannel, self).__init__('You are not in a voice channel.')
 
@@ -39,7 +39,7 @@ class NegativeSpeed(commands.BadArgument):
         super(NegativeSpeed, self).__init__('Speed cannot be less than 0%.')
 
 
-class BadPlaybackArgs(commands.BadArgument):
+class BadPlaybackArgs(commands.ArgumentParsingError):
     def __init__(self, args):
         super(BadPlaybackArgs, self).__init__(f'Cound not parse `{args}`.')
 
