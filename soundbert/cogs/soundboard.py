@@ -304,14 +304,10 @@ class SoundBoard(commands.Cog):
 
             filename = hash.hexdigest().upper()
 
-            try:
-                server_dir = self.sound_path / str(ctx.guild.id)
+            server_dir = self.sound_path / str(ctx.guild.id)
 
-                if not server_dir.exists():
-                    server_dir.mkdir()
-            except OSError:
-                raise commands.CommandError(
-                    'Error while creating guild directory.')
+            if not server_dir.exists():
+                server_dir.mkdir()
 
             try:
                 shutil.move(str(file), str(server_dir / filename))
