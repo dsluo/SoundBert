@@ -56,14 +56,14 @@ class SoundBoard(commands.Cog):
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
         try:
-            channel = ctx.author.voice.channel
+            channel: discord.VoiceChannel = ctx.author.voice.channel
         except AttributeError:
             raise exceptions.NoChannel()
 
         async with self.bot.pool.acquire() as conn:
-            filename = await conn.fetchval(
+            filename, id = await conn.fetchval(
                 '''
-                SELECT s.filename
+                SELECT (s.filename, s.id)
                 FROM sounds s INNER JOIN sound_names sn ON s.id = sn.sound_id
                 WHERE sn.guild_id = $1 AND sn.name = $2
                 ''',
@@ -123,6 +123,10 @@ class SoundBoard(commands.Cog):
         if volume is None:
             volume = 100
 
+        log.debug(
+            f'Playing sound {name} ({id}) in #{channel.name} ({channel.id}) of guild {ctx.guild.name} ({ctx.guild.id}).'
+        )
+
         log.debug('Connecting to voice channel.')
         vclient: VoiceClient = ctx.guild.voice_client or await channel.connect()
         await vclient.move_to(channel)
@@ -172,7 +176,7 @@ class SoundBoard(commands.Cog):
                 name.lower()
             )
 
-        log.debug('Stopping playback.')
+        log.debug('Starting playback.')
         vclient.play(source=source, after=wrapper)
 
     @commands.command()
@@ -206,6 +210,7 @@ class SoundBoard(commands.Cog):
             await ctx.trigger_typing()
 
             def download_sound(url):
+                log.debug(f'Downloading from {url}.')
                 options = {
                     'format':            'bestaudio/best',
                     'postprocessors':    [{
@@ -215,9 +220,9 @@ class SoundBoard(commands.Cog):
                     'outtmpl':           f'{time.time()}_%(id)s.%(ext)s',
                     'restrictfilenames': True,
                     'default_search':    'error',
+                    'logger':            log
                 }
                 yt = youtube_dl.YoutubeDL(options)
-                log.debug(f'Downloading from {url}.')
                 info = yt.extract_info(url)
 
                 # workaround for post-processed filenames
@@ -234,8 +239,7 @@ class SoundBoard(commands.Cog):
                 return file
 
             try:
-                file = await self.bot.loop.run_in_executor(None, download_sound,
-                                                           link)
+                file = await self.bot.loop.run_in_executor(None, download_sound, link)
             except (youtube_dl.DownloadError, FileNotFoundError):
                 raise exceptions.DownloadError()
 
@@ -252,6 +256,8 @@ class SoundBoard(commands.Cog):
                     hash.update(chunk)
 
             filename = hash.hexdigest().upper()
+
+            log.debug(f'Hash for {file.name} is {filename}.')
 
             server_dir = self.sound_path / str(ctx.guild.id)
 

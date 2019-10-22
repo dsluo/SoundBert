@@ -36,17 +36,18 @@ class SoundBert(commands.Bot):
             'soundbert.cogs.admin'
         ]
 
-        log.debug('Loading base extensions.')
+        log.info('Loading base extensions.')
         for ext in base_extensions:
             self.load_extension(ext)
+            log.debug(f'Loaded {ext}')
 
-        log.debug('Loading extra extensions.')
+        log.info('Loading extra extensions.')
         for ext in config['bot']['extra_cogs']:
             try:
                 self.load_extension(ext)
+                log.debug(f'Loaded {ext}.')
             except ExtensionNotFound:
-                log.exception('Failed to load extension.')
-
+                log.exception(f'Failed to load {ext}')
 
     @staticmethod
     def _ensure_event_loop():
@@ -62,12 +63,15 @@ class SoundBert(commands.Bot):
                 pass
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
-        log.exception(
+        log_msg = (
             f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
-            f'{ctx.author.name} executed {ctx.message.content}, but encountered exception:\n'
-            f'{exception}',
-            exc_info=exception
+            f'{ctx.author.name} executed {ctx.message.content}, but encountered exception: {exception}'
         )
+        if not isinstance(exception, commands.UserInputError):
+            log.exception(log_msg, exc_info=exception)
+        else:
+            log.debug(log_msg)
+
         await no(ctx)
         if len(exception.args) > 0:
             msg = await ctx.send(exception.args[0])
@@ -78,11 +82,12 @@ class SoundBert(commands.Bot):
             await msg.delete(delay=delay)
 
     async def on_command(self, ctx: commands.Context):
-        log.debug(
+        log.info(
             f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
             f'{ctx.author.name} executed {ctx.message.content}'
         )
 
     async def on_guild_join(self, guild: Guild):
+        log.info(f'Joined guild {guild.name} ({guild.id}).')
         async with self.pool.acquire() as conn:
             await conn.execute('INSERT INTO guilds(id) VALUES ($1)', guild.id)
