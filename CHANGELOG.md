@@ -4,6 +4,7 @@
 * [0.3.1](#0.3.1)
 * [0.3.2](#0.3.2)
 * [0.4.0](#0.4.0)
+* [0.4.1](#0.4.1)
 
 ## 0.3.0
 
@@ -28,3 +29,7 @@
 * Added sound aliases. User `!alias <name> <alias>` to give a sound an alias. 
 * Removed unused `!last` command.
 * Improved logging.
+
+## 0.4.1
+
+* Fixed bug where if two sounds come from the same download, if one is deleted, both are deleted.

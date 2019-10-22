@@ -1,12 +1,10 @@
 import asyncio
-import hashlib
 import logging
 import shutil
 import time
 from collections import OrderedDict
 from pathlib import Path
 
-import aiofiles
 import asyncpg
 import discord
 import youtube_dl
@@ -245,27 +243,13 @@ class SoundBoard(commands.Cog):
 
             length = await self.get_length(file)
 
-            # Write response to temporary file and moves it to the /sounds directory when done.
-            # Filename = blake2 hash of file
-            hash = hashlib.blake2b()
-            async with aiofiles.open(file, 'rb') as f:
-                while True:
-                    chunk = await f.read(8192)
-                    if not chunk:
-                        break
-                    hash.update(chunk)
-
-            filename = hash.hexdigest().upper()
-
-            log.debug(f'Hash for {file.name} is {filename}.')
-
             server_dir = self.sound_path / str(ctx.guild.id)
 
             if not server_dir.exists():
                 server_dir.mkdir()
 
             try:
-                shutil.move(str(file), str(server_dir / filename))
+                shutil.move(str(file), str(server_dir / file.name))
             except FileExistsError:
                 file.unlink()
                 raise exceptions.SoundExists(name)
@@ -277,7 +261,7 @@ class SoundBoard(commands.Cog):
                     VALUES ($1, $2, $3, $4, $5)
                     RETURNING id
                     ''',
-                    filename,
+                    file.name,
                     ctx.author.id,
                     link,
                     ctx.message.created_at,
