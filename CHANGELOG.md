@@ -3,6 +3,7 @@
 * [0.3.0](#0.3.0)
 * [0.3.1](#0.3.1)
 * [0.3.2](#0.3.2)
+* [0.4.0](#0.4.0)
 
 ## 0.3.0
 
@@ -21,3 +22,9 @@
 ## 0.3.2
 
 * Permanent fix for Discord voice connect issues using v1.2.4 (production version) of `discord.py`.
+
+## 0.4.0
+
+* Added sound aliases. User `!alias <name> <alias>` to give a sound an alias. 
+* Removed unused `!last` command.
+* Improved logging.
