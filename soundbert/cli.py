@@ -11,7 +11,7 @@ import asyncpg
 import click
 import toml
 
-from . import SoundBert
+from .soundbert import SoundBert
 
 
 @click.group()
