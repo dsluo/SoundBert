@@ -26,12 +26,11 @@ RUN apk update \
 
 # install soundbert python dependencies
 COPY ./requirements.txt /tmp/soundbert
-RUN python3 -m pip install --no-cache-dir -r /tmp/soundbert/requirements.txt && \
-    python3 -m pip install --no-cache-dir uvloop==0.13.0
+RUN python3 -m pip install --no-cache-dir -r /tmp/soundbert/requirements.txt
 
 # install soundbert
 COPY . /tmp/soundbert
-RUN python3 -m pip install --no-cache-dir /tmp/soundbert[uvloop] \
+RUN python3 -m pip install --no-cache-dir /tmp/soundbert[jishaku] \
 # remove build deps
     && apk del build-deps \
     && rm -r /tmp/soundbert
