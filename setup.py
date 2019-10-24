@@ -4,7 +4,12 @@ with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
 extras_require = {
-    'uvloop': ['uvloop==0.13.0']
+    'jishaku': [
+        'braceexpand==0.1.3',
+        'humanize==0.5.1',
+        'import-expression==0.5.0',
+        'jishaku==1.16.4.160'
+    ]
 }
 
 with open('README.md') as f:
