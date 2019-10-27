@@ -59,7 +59,7 @@ class SoundBoard(commands.Cog):
             raise exceptions.NoChannel()
 
         async with self.bot.pool.acquire() as conn:
-            filename, id = await conn.fetchval(
+            sound = await conn.fetchval(
                 '''
                 SELECT (s.filename, s.id)
                 FROM sounds s INNER JOIN sound_names sn ON s.id = sn.sound_id
@@ -69,13 +69,15 @@ class SoundBoard(commands.Cog):
                 name.lower()
             )
 
-            if filename is None:
+            if sound is None:
                 results = await self._search(ctx.guild.id, name, conn)
                 if len(results) > 0:
                     results = '\n'.join(result['name'] for result in results)
                     raise exceptions.SoundDoesNotExist(name, results)
                 else:
                     raise exceptions.SoundDoesNotExist(name)
+
+            filename, id = sound
 
         file = self.sound_path / str(ctx.guild.id) / filename
 
