@@ -72,7 +72,7 @@ class SoundBoard(commands.Cog):
             if sound is None:
                 results = await self._search(ctx.guild.id, name, conn)
                 if len(results) > 0:
-                    results = '\n'.join(result['name'] for result in results)
+                    results = '\n'.join(results)
                     raise exceptions.SoundDoesNotExist(name, results)
                 else:
                     raise exceptions.SoundDoesNotExist(name)
