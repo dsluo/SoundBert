@@ -1,4 +1,5 @@
-from sqlalchemy import Integer, Table, Column, MetaData, String, Text, BigInteger, DateTime, Float, ForeignKey, Boolean
+from sqlalchemy import Integer, Table, Column, MetaData, String, Text, BigInteger, DateTime, Float, ForeignKey, Boolean, \
+    Index, text
 
 metadata = MetaData()
 
@@ -29,7 +30,8 @@ sound_names = Table(
     metadata,
     Column('id', Integer(), primary_key=True),
     Column('sound_id', Integer(), ForeignKey('sounds.id')),
-    Column('guild_id', Integer(), ForeignKey('guilds.id')),
-    Column('name', String()),
-    Column('is_alias', Boolean(), default=True)
+    Column('guild_id', Integer(), ForeignKey('guilds.id'), index=True),
+    Column('name', String(), index=True),
+    Column('is_alias', Boolean(), default=True),
+    Index('name_guild_id_unique_index', 'guild_id', text('lower(name)'))
 )
