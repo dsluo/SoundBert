@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
+from sqlalchemy import select
 
+from ..database import guilds
 from .utils.reactions import yes
 from ..soundbert import SoundBert
 
@@ -29,16 +31,17 @@ class Settings(commands.Cog):
         Use !settings <setting> <value> to change a setting's value.
         """
 
-        async with self.bot.pool.acquire() as conn:
-            settings = await conn.fetchrow(
-                'SELECT (prefix, soundmaster, soundplayer) FROM guilds WHERE id = $1',
-                ctx.guild.id
-            )
+        settings = await self.bot.db.fetch_one(
+            select([guilds.c.prefix, guilds.c.soundmaster, guilds.c.soundplayer])
+                .where(guilds.c.id == ctx.guild.id)
+        )
 
         embed = discord.Embed()
         embed.title = 'Settings'
 
-        prefix, soundmaster, soundplayer = settings['row']
+        prefix = settings[guilds.c.prefix]
+        soundmaster = settings[guilds.c.soundmaster]
+        soundplayer = settings[guilds.c.soundplayer]
 
         embed.add_field(name='Prefix', value=prefix or self.bot.config['bot']['default_prefix'])
         embed.add_field(
@@ -64,12 +67,11 @@ class Settings(commands.Cog):
         if len(prefix) > 20:
             raise commands.BadArgument('Prefix must be 20 characters or less.')
 
-        async with self.bot.pool.acquire() as conn:
-            await conn.execute(
-                'UPDATE guilds SET prefix = $1 WHERE id = $2',
-                prefix,
-                ctx.guild.id
-            )
+        await self.bot.db.execute(
+            guilds.update()
+                .where(guilds.c.id == ctx.guild.id)
+                .values(prefix=prefix)
+        )
         await yes(ctx)
 
     @settings.command()
@@ -82,12 +84,11 @@ class Settings(commands.Cog):
         :param role: The role to make master of sounds.
         """
 
-        async with self.bot.pool.acquire() as conn:
-            await conn.execute(
-                'UPDATE guilds SET soundmaster = $1 WHERE id = $2',
-                role.id,
-                ctx.guild.id
-            )
+        await self.bot.db.execute(
+            guilds.update()
+                .where(guilds.c.id == ctx.guild.id)
+                .values(soundmaster=role.id)
+        )
         await yes(ctx)
 
     @settings.command()
@@ -99,12 +100,11 @@ class Settings(commands.Cog):
         :param role: The role to make player of sounds.
         """
 
-        async with self.bot.pool.acquire() as conn:
-            await conn.execute(
-                'UPDATE guilds SET soundplayer = $1 WHERE id = $2',
-                role.id,
-                ctx.guild.id
-            )
+        await self.bot.db.execute(
+            guilds.update()
+                .where(guilds.c.id == ctx.guild.id)
+                .values(soundplayer=role.id)
+        )
         await yes(ctx)
 
 

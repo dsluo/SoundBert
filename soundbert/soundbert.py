@@ -2,11 +2,13 @@ import asyncio
 import logging
 import platform
 
-import asyncpg
+from databases import Database
 from discord import Message, Guild
 from discord.ext import commands
 from discord.ext.commands import ExtensionNotFound
+from sqlalchemy import select
 
+from .database import guilds
 from .cogs.utils.reactions import no
 
 __all__ = ['SoundBert']
@@ -16,8 +18,7 @@ log = logging.getLogger(__name__)
 
 async def get_prefix(bot: 'SoundBert', msg: Message):
     default_prefix = bot.config['bot']['default_prefix']
-    async with bot.pool.acquire() as conn:
-        prefix = await conn.fetchval('SELECT prefix FROM guilds WHERE id = $1', msg.guild.id)
+    prefix = await bot.db.fetch_val(select([guilds.c.prefix]).where(guilds.c.id == msg.guild.id))
     return commands.when_mentioned_or(prefix if prefix else default_prefix)(bot, msg)
 
 
@@ -27,7 +28,8 @@ class SoundBert(commands.Bot):
         super().__init__(command_prefix=get_prefix)
 
         self.config = config
-        self.pool: asyncpg.pool.Pool = self.loop.run_until_complete(asyncpg.create_pool(config['bot']['db_uri']))
+        self.db = Database(config['bot']['db_uri'])
+        self.loop.run_until_complete(self.db.connect())
 
         base_extensions = [
             'soundbert.cogs.soundboard',
@@ -89,5 +91,4 @@ class SoundBert(commands.Bot):
 
     async def on_guild_join(self, guild: Guild):
         log.info(f'Joined guild {guild.name} ({guild.id}).')
-        async with self.pool.acquire() as conn:
-            await conn.execute('INSERT INTO guilds(id) VALUES ($1)', guild.id)
+        await self.db.execute(guilds.insert().values(id=guild.id))
