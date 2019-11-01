@@ -173,6 +173,7 @@ class SoundBoard(commands.Cog):
                 sounds.update()
                     .values(played=sounds.c.played + 1)
                     .where(and_(
+                        sounds.c.id == sound_names.c.id,
                         sound_names.c.guild_id == ctx.guild.id,
                         sound_names.c.name == name.lower()
                 ))
