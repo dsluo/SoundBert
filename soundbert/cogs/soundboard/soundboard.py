@@ -171,7 +171,12 @@ class SoundBoard(commands.Cog):
 
         async with self.bot.pool.acquire() as conn:
             await conn.execute(
-                'UPDATE sounds SET played = played + 1 FROM sound_names WHERE guild_id = $1 AND name = $2',
+                '''
+                UPDATE sounds s
+                SET played = played + 1 
+                FROM sound_names sn
+                WHERE s.id = sn.id AND sn.guild_id = $1 AND sn.name = $2
+                ''',
                 ctx.guild.id,
                 name.lower()
             )
