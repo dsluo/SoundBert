@@ -10,13 +10,13 @@ import discord
 import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
-from sqlalchemy import and_, select, func, exists, true, column
+from sqlalchemy import and_, select, func, exists, true, literal
 
-from soundbert.database import sounds, sound_names
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
 from ..utils.humantime import humanduration, TimeUnits
 from ..utils.reactions import yes
+from ...database import sounds, sound_names
 from ...soundbert import SoundBert
 
 log = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class SoundBoard(commands.Cog):
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
                         sound_names.c.name == name.lower()
-                    ))
+                ))
         )
 
         if sound is None:
@@ -299,12 +299,22 @@ class SoundBoard(commands.Cog):
                     sound_names.insert()
                         .returning(sound_names.c.sound_id)
                         .from_select(
-                            [sound_names.c.sound_id, sound_names.c.guild_id, sound_names.c.name,
-                             sound_names.c.is_alias],
-                            select([sound_names.c.sound_id, sound_names.c.guild_id, column(alias), true()])
+                            [
+                                sound_names.c.sound_id,
+                                sound_names.c.guild_id,
+                                sound_names.c.name,
+                                sound_names.c.is_alias
+                            ],
+                            select([
+                                sound_names.c.sound_id,
+                                sound_names.c.guild_id,
+                                literal(alias),
+                                true()
+                            ])
                                 .where(and_(
                                     sound_names.c.guild_id == ctx.guild.id,
-                                    sound_names.c.name == name.lower()))
+                                    sound_names.c.name == name.lower()
+                            ))
                     )
             )
 
@@ -338,7 +348,7 @@ class SoundBoard(commands.Cog):
                     sounds.delete()
                         .where(and_(
                             sound_names.c.guild_id == ctx.guild.id,
-                            filename == filename,
+                            sounds.c.filename == filename,
                             sound_names.c.sound_id == sounds.c.id
                     ))
             )
@@ -360,7 +370,7 @@ class SoundBoard(commands.Cog):
             sound_exists = await self.bot.db.fetch_val(
                     sound_names.update()
                         .returning(sound_names.c.id)
-                        .values(name=name.lower())
+                        .values(name=new_name.lower())
                         .where(and_(
                             sound_names.c.guild_id == ctx.guild.id,
                             sound_names.c.name == name.lower()
@@ -380,7 +390,7 @@ class SoundBoard(commands.Cog):
         List all the sounds on the soundboard.
         """
 
-        sounds = await self.bot.db.fetch_all(
+        all_sounds = await self.bot.db.fetch_all(
                 select([sound_names.c.name])
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
@@ -389,11 +399,11 @@ class SoundBoard(commands.Cog):
                     .order_by(sound_names.c.name)
         )
 
-        if len(sounds) == 0:
+        if len(all_sounds) == 0:
             message = 'No sounds yet.'
         else:
             split = OrderedDict()
-            for sound in sounds:
+            for sound in all_sounds:
                 name = sound[sound_names.c.name]
                 first = name[0].lower()
                 if first not in 'abcdefghijklmnopqrstuvwxyz':
@@ -447,11 +457,14 @@ class SoundBoard(commands.Cog):
         if sound is None:
             raise exceptions.SoundDoesNotExist(name)
 
-        names = await self.bot.db.fetch_all(
-                select([sound_names.c.name])
-                    .where(sound_names.c.sound_id == sound[sounds.c.id])
-                    .order_by(sound_names.c.is_alias, sound_names.c.name)
-        )
+        names = [
+            record[sound_names.c.name]
+            for record in await self.bot.db.fetch_all(
+                    select([sound_names.c.name])
+                        .where(sound_names.c.sound_id == sound[sounds.c.id])
+                        .order_by(sound_names.c.is_alias, sound_names.c.name)
+            )
+        ]
 
         name, *aliases = names
 
@@ -492,7 +505,7 @@ class SoundBoard(commands.Cog):
                         ~sound_names.c.is_alias
                 ))
                     .order_by(func.random())
-                    .limit()
+                    .limit(1)
         )
         log.debug(f'Playing random sound {name}.')
         await ctx.invoke(self.play, name, args=args)
@@ -524,27 +537,26 @@ class SoundBoard(commands.Cog):
         :return:
         """
 
-        await self.bot.db.execute(f'SET pg_trgm.similarity_threshold = {threshold};')
+        await self.bot.db.execute(query=f'SET pg_trgm.similarity_threshold = {threshold}')
 
-        if alias is None:
-            whereclause = and_(
-                    sound_names.c.guild_id == guild_id,
-                    sound_names.c.name.op('%')(query)
-            )
-        else:
-            whereclause = and_(
-                    sound_names.c.guild_id == guild_id,
-                    sound_names.c.name.op('%')(query),
+        whereclause = and_(
+                # The first % escapes the second % here.
+                sound_names.c.name.op('%%')(query),
+                sound_names.c.guild_id == guild_id
+        )
+
+        if alias is not None:
+            whereclause.append(
                     sound_names.c.is_alias == alias
             )
 
         results = await self.bot.db.fetch_all(
                 select([sound_names.c.name])
-                .where(whereclause)
-                .order_by(func.similarity(sound_names.c.name, query).desc())
-                .limit(limit)
+                    .where(whereclause)
+                    .order_by(func.similarity(sound_names.c.name, query).desc())
+                    .limit(limit)
         )
 
-        results = [record['name'] for record in results]
+        results = [record[sound_names.c.name] for record in results]
 
         return results
