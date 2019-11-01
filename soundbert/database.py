@@ -31,7 +31,7 @@ sound_names = Table(
         Column('id', Integer(), primary_key=True),
         Column('sound_id', Integer(), ForeignKey('sounds.id', ondelete='CASCADE'), nullable=False),
         Column('guild_id', Integer(), ForeignKey('guilds.id', ondelete='CASCADE'), nullable=False),
-        Column('name', String(), index=True),
-        Column('is_alias', Boolean(), default=True, server_default=text('false')),
+        Column('name', String(), nullable=False),
+        Column('is_alias', Boolean(), server_default=text('false'), nullable=False),
         Index('sound_names_sound_id_guild_id_name_uindex', 'sound_id', 'guild_id', text('lower(name)'), unique=True)
 )
