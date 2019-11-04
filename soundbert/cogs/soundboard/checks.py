@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
+from sqlalchemy import select
 
+from ...database import guilds
 from . import exceptions
 
 
@@ -12,11 +14,10 @@ async def is_soundmaster(ctx: commands.Context):
     if ctx.author.guild_permissions.manage_guild:
         return True
 
-    async with ctx.bot.pool.acquire() as conn:
-        soundmaster = await conn.fetchval(
-            'SELECT soundmaster FROM guilds WHERE id = $1',
-            ctx.guild.id
-        )
+    soundmaster = await ctx.bot.db.fetch_val(
+        select([guilds.c.soundmaster])
+            .where(guilds.c.id == ctx.guild.id)
+    )
 
     if soundmaster is None:
         return True
@@ -32,11 +33,10 @@ async def is_soundplayer(ctx: commands.Context):
     if await is_soundmaster(ctx):
         return True
 
-    async with ctx.bot.pool.acquire() as conn:
-        soundplayer = await conn.fetchval(
-            'SELECT soundplayer FROM guilds WHERE id = $1',
-            ctx.guild.id
-        )
+    soundplayer = await ctx.bot.db.fetch_val(
+        select([guilds.c.soundplayer])
+            .where(guilds.c.id == ctx.guild.id)
+    )
 
     if soundplayer is None:
         return True
