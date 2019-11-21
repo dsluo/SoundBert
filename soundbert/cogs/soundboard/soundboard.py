@@ -143,12 +143,7 @@ class SoundBoard(commands.Cog):
         async def stop():
             log.debug('Stopping playback.')
             await vclient.disconnect(force=True)
-
-            await self.bot.db.execute(
-                    sounds.update()
-                        .values(stopped=sounds.c.stopped + 1)
-                        .where(sounds.c.id == id)
-            )
+            return id
 
         def wrapper(error):
             try:
@@ -422,8 +417,14 @@ class SoundBoard(commands.Cog):
         """
         Stop playback of the current sound.
         """
+
         try:
-            await self.playing.pop(ctx.guild.id)
+            id = await self.playing.pop(ctx.guild.id)
+            await self.bot.db.execute(
+                    sounds.update()
+                        .values(stopped=sounds.c.stopped + 1)
+                        .where(sounds.c.id == id)
+            )
         except KeyError:
             # nothing was playing
             pass
