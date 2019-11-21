@@ -147,11 +147,7 @@ class SoundBoard(commands.Cog):
             await self.bot.db.execute(
                     sounds.update()
                         .values(stopped=sounds.c.stopped + 1)
-                        .where(and_(
-                            sounds.c.id == sound_names.c.id,
-                            sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name.lower())
-                    )
+                        .where(sounds.c.id == id)
             )
 
         def wrapper(error):
@@ -172,11 +168,7 @@ class SoundBoard(commands.Cog):
         await self.bot.db.execute(
                 sounds.update()
                     .values(played=sounds.c.played + 1)
-                    .where(and_(
-                        sounds.c.id == sound_names.c.id,
-                        sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name.lower()
-                ))
+                    .where(sounds.c.id == id)
         )
 
         log.debug('Starting playback.')
