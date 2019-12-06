@@ -6,7 +6,7 @@ cffi==1.13.0
 chardet==3.0.4
 Click==7.0
 databases==0.2.5
-discord.py==1.2.4
+discord.py==1.2.5
 idna==2.8
 multidict==4.5.2
 psycopg2-binary==2.8.4
