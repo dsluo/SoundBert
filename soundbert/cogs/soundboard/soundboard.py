@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 # noinspection PyIncorrectDocstring
 class SoundBoard(commands.Cog):
     def __init__(self, bot: 'SoundBert'):
-        self.sound_path = Path(bot.config['soundboard']['path'])
+        self.sound_path = Path(bot.config.sound_path)
         self.bot = bot
 
         self.playing = {}

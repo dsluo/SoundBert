@@ -5,11 +5,11 @@ import platform
 from databases import Database
 from discord import Message, Guild
 from discord.ext import commands
-from discord.ext.commands import ExtensionNotFound
 from sqlalchemy import select
 
-from .database import guilds
 from .cogs.utils.reactions import no
+from .config import Config
+from .database import guilds
 
 __all__ = ['SoundBert']
 
@@ -17,18 +17,18 @@ log = logging.getLogger(__name__)
 
 
 async def get_prefix(bot: 'SoundBert', msg: Message):
-    default_prefix = bot.config['bot']['default_prefix']
+    default_prefix = bot.config.default_prefix
     prefix = await bot.db.fetch_val(select([guilds.c.prefix]).where(guilds.c.id == msg.guild.id))
     return commands.when_mentioned_or(prefix if prefix else default_prefix)(bot, msg)
 
 
 class SoundBert(commands.Bot):
-    def __init__(self, config):
+    def __init__(self, config: Config):
         self._ensure_event_loop()
         super().__init__(command_prefix=get_prefix)
 
         self.config = config
-        self.db = Database(config['bot']['db_uri'])
+        self.db = Database(config.database_url)
         self.loop.run_until_complete(self.db.connect())
 
         base_extensions = [
@@ -42,14 +42,6 @@ class SoundBert(commands.Bot):
         for ext in base_extensions:
             self.load_extension(ext)
             log.debug(f'Loaded {ext}')
-
-        log.info('Loading extra extensions.')
-        for ext in config['bot']['extra_cogs']:
-            try:
-                self.load_extension(ext)
-                log.debug(f'Loaded {ext}.')
-            except ExtensionNotFound:
-                log.exception(f'Failed to load {ext}')
 
     @staticmethod
     def _ensure_event_loop():
@@ -85,8 +77,8 @@ class SoundBert(commands.Bot):
 
     async def on_command(self, ctx: commands.Context):
         log.info(
-            f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
-            f'{ctx.author.name} executed {ctx.message.content}'
+                f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
+                f'{ctx.author.name} executed {ctx.message.content}'
         )
 
     async def on_guild_join(self, guild: Guild):
