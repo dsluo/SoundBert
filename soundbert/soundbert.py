@@ -2,8 +2,10 @@ import asyncio
 import logging
 import platform
 
+from async_lru import alru_cache
+from asyncpg import UniqueViolationError
 from databases import Database
-from discord import Message, Guild
+from discord import Message
 from discord.ext import commands
 from sqlalchemy import select
 
@@ -16,16 +18,10 @@ __all__ = ['SoundBert']
 log = logging.getLogger(__name__)
 
 
-async def get_prefix(bot: 'SoundBert', msg: Message):
-    default_prefix = bot.config.default_prefix
-    prefix = await bot.db.fetch_val(select([guilds.c.prefix]).where(guilds.c.id == msg.guild.id))
-    return commands.when_mentioned_or(prefix if prefix else default_prefix)(bot, msg)
-
-
 class SoundBert(commands.Bot):
     def __init__(self, config: Config):
         self._ensure_event_loop()
-        super().__init__(command_prefix=get_prefix)
+        super().__init__(command_prefix=self._get_guild_prefix)
 
         self.config = config
         self.db = Database(config.database_url)
@@ -58,6 +54,10 @@ class SoundBert(commands.Bot):
                 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
             except ImportError:
                 pass
+
+    async def _get_guild_prefix(self, msg: Message):
+        prefix = await self.db.fetch_val(select([guilds.c.prefix]).where(guilds.c.id == msg.guild.id))
+        return commands.when_mentioned_or(prefix)(self, msg)
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
         log_msg = (
