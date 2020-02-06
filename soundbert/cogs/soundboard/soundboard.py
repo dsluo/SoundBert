@@ -204,13 +204,10 @@ class SoundBoard(commands.Cog):
 
         def download_sound(url):
             log.debug(f'Downloading from {url}.')
+            # it is impossible to pipe directly from youtube-dl's output because it does not provide an API for it
+            # https://github.com/ytdl-org/youtube-dl/blob/fffc618c519d10a7335eb5b06ab13d56ecea8561/youtube_dl/utils.py#L2030-L2059
             options = {
-                'format':            'bestaudio/best',
-                'postprocessors':    [{
-                    'key':            'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3'
-                }],
-                'outtmpl':           f'{time.time()}_%(id)s.%(ext)s',
+                'format':            'webm[abr>0]/bestaudio/best',
                 'restrictfilenames': True,
                 'default_search':    'error',
                 'logger':            log
@@ -218,25 +215,17 @@ class SoundBoard(commands.Cog):
             yt = youtube_dl.YoutubeDL(options)
             info = yt.extract_info(url)
 
-            # workaround for post-processed filenames
-            # https://github.com/ytdl-org/youtube-dl/issues/5710
             filename = yt.prepare_filename(info)
-            unprocessed = Path(filename)
-            postprocessed = Path('.').glob(f'{unprocessed.stem}*')
 
-            try:
-                file = next(postprocessed)
-            except StopIteration:
-                raise FileNotFoundError("Couldn't find postprocessed file.")
-
-            return file
+            return info, Path(filename)
 
         try:
-            file = await self.bot.loop.run_in_executor(None, download_sound, link)
-        except (youtube_dl.DownloadError, FileNotFoundError):
+            info, file = await self.bot.loop.run_in_executor(None, download_sound, link)
+        except youtube_dl.DownloadError:
             raise exceptions.DownloadError()
 
-        length = await self.get_length(file)
+        # info should have duration, but I already had get_length written so why not.
+        length = info.get('duration') or await SoundBoard.get_length(file)
 
         server_dir = self.sound_path / str(ctx.guild.id)
 
@@ -244,7 +233,8 @@ class SoundBoard(commands.Cog):
             server_dir.mkdir()
 
         try:
-            shutil.move(str(file), str(server_dir / file.name))
+            # allows this to work on docker
+            shutil.move(str(file), str(server_dir / name))
         except FileExistsError:
             file.unlink()
             raise exceptions.SoundExists(name)
@@ -254,10 +244,8 @@ class SoundBoard(commands.Cog):
                     sounds.insert()
                         .returning(sounds.c.id)
                         .values(
-                            filename=file.name,
                             uploader=ctx.author.id,
                             source=link,
-                            upload_time=ctx.message.created_at,
                             length=length
                     )
             )
@@ -267,7 +255,7 @@ class SoundBoard(commands.Cog):
                         .values(
                             sound_id=sound_id,
                             guild_id=ctx.guild.id,
-                            name=name.lower()
+                            name=name
                     )
             )
         await yes(ctx)
