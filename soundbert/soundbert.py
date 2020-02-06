@@ -43,6 +43,9 @@ class SoundBert(commands.Bot):
             self.load_extension(ext)
             log.debug(f'Loaded {ext}')
 
+    def run(self):
+        super(SoundBert, self).run(self.config.token)
+
     @staticmethod
     def _ensure_event_loop():
         if platform.system() == 'Windows':
