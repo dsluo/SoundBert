@@ -41,7 +41,7 @@ def upgrade():
             'sound_names',
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('sound_id', sa.Integer(), nullable=False),
-            sa.Column('guild_id', sa.Integer(), nullable=False),
+            sa.Column('guild_id', sa.BigInteger(), nullable=False),
             sa.Column('name', sa.String(collation='case_insensitive'), nullable=False),
             sa.Column('is_alias', sa.Boolean(), server_default=sa.text('false'), nullable=False),
             sa.ForeignKeyConstraint(['guild_id'], ['guilds.id'], ondelete='CASCADE'),
