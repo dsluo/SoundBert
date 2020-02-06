@@ -56,8 +56,18 @@ class SoundBert(commands.Bot):
                 pass
 
     async def _get_guild_prefix(self, msg: Message):
+        await self._ensure_guild(msg.guild.id)
         prefix = await self.db.fetch_val(select([guilds.c.prefix]).where(guilds.c.id == msg.guild.id))
         return commands.when_mentioned_or(prefix)(self, msg)
+
+    @alru_cache(maxsize=2048)
+    async def _ensure_guild(self, guild_id: int):
+        log.debug(f'Ensure guild {guild_id} is in database.')
+        query = guilds.insert().values(id=guild_id, prefix=self.config.default_prefix)
+        try:
+            await self.db.execute(query)
+        except UniqueViolationError:
+            pass
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
         log_msg = (
@@ -84,6 +94,3 @@ class SoundBert(commands.Bot):
                 f'{ctx.author.name} executed {ctx.message.content}'
         )
 
-    async def on_guild_join(self, guild: Guild):
-        log.info(f'Joined guild {guild.name} ({guild.id}).')
-        await self.db.execute(guilds.insert().values(id=guild.id))
