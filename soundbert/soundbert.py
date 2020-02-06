@@ -21,7 +21,7 @@ log = logging.getLogger(__name__)
 class SoundBert(commands.Bot):
     def __init__(self, config: Config):
         self._ensure_event_loop()
-        super().__init__(command_prefix=self._get_guild_prefix)
+        super().__init__(command_prefix=SoundBert._get_guild_prefix)
 
         self.config = config
         self.db = Database(config.database_url)
