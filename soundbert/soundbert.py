@@ -44,6 +44,9 @@ class SoundBert(commands.Bot):
 
     @staticmethod
     def _ensure_event_loop():
+        """
+        Allows for subprocessing using asyncio on Windows, and tries to use uvloop on Unix-like systems.
+        """
         if platform.system() == 'Windows':
             loop = asyncio.ProactorEventLoop()
             asyncio.set_event_loop(loop)
@@ -56,12 +59,23 @@ class SoundBert(commands.Bot):
                 pass
 
     async def _get_guild_prefix(self, msg: Message):
+        """
+        Implementation for command_prefix.
+
+        :param msg: The message that might have a command.
+        :return: The prefix
+        """
         await self._ensure_guild(msg.guild.id)
         prefix = await self.db.fetch_val(select([guilds.c.prefix]).where(guilds.c.id == msg.guild.id))
         return commands.when_mentioned_or(prefix)(self, msg)
 
     @alru_cache(maxsize=2048)
     async def _ensure_guild(self, guild_id: int):
+        """
+        Ensures that the guild is in the database. Uses an LRU cache to try to not ping the database too much.
+
+        :param guild_id: The guild id
+        """
         log.debug(f'Ensure guild {guild_id} is in database.')
         query = guilds.insert().values(id=guild_id, prefix=self.config.default_prefix)
         try:
@@ -70,6 +84,12 @@ class SoundBert(commands.Bot):
             pass
 
     async def on_command_error(self, ctx: commands.Context, exception: commands.CommandError):
+        """
+        Error handling.
+
+        :param ctx: Command context
+        :param exception: What went wrong
+        """
         log_msg = (
             f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
             f'{ctx.author.name} executed {ctx.message.content}, but encountered exception: {exception}'
@@ -89,8 +109,12 @@ class SoundBert(commands.Bot):
             await msg.delete(delay=delay)
 
     async def on_command(self, ctx: commands.Context):
+        """
+        Log command execution.
+
+        :param ctx: Command context
+        """
         log.info(
                 f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
                 f'{ctx.author.name} executed {ctx.message.content}'
         )
-
