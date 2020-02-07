@@ -65,7 +65,7 @@ class SoundBoard(commands.Cog):
                     .select_from(sounds.join(sound_names))
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name.lower()
+                        sound_names.c.name == name
                 ))
         )
 
@@ -190,7 +190,7 @@ class SoundBoard(commands.Cog):
                     exists([1])
                         .where(and_(
                             sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name.lower()
+                            sound_names.c.name == name
                     ))
                 ])
         )
@@ -287,7 +287,7 @@ class SoundBoard(commands.Cog):
                             ])
                                 .where(and_(
                                     sound_names.c.guild_id == ctx.guild.id,
-                                    sound_names.c.name == name.lower()
+                                    sound_names.c.name == name
                             ))
                     )
             )
@@ -312,7 +312,7 @@ class SoundBoard(commands.Cog):
                     .select_from(sounds.join(sound_names))
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name.lower()
+                        sound_names.c.name == name
                 ))
         )
         if filename is None:
@@ -344,10 +344,10 @@ class SoundBoard(commands.Cog):
             sound_exists = await self.bot.db.fetch_val(
                     sound_names.update()
                         .returning(sound_names.c.id)
-                        .values(name=new_name.lower())
+                        .values(name=new_name)
                         .where(and_(
                             sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name.lower()
+                            sound_names.c.name == name
                     ))
             )
             if sound_exists is not None:
@@ -430,7 +430,7 @@ class SoundBoard(commands.Cog):
                     .select()
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name.lower()
+                        sound_names.c.name == name
                 ))
         )
 
