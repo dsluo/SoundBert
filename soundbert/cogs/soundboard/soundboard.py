@@ -2,6 +2,7 @@ import asyncio
 import logging
 import shutil
 from collections import OrderedDict
+from datetime import timedelta
 from pathlib import Path
 
 import asyncpg
@@ -225,6 +226,7 @@ class SoundBoard(commands.Cog):
 
         # info should have duration, but I already had get_length written so why not.
         length = info.get('duration') or await SoundBoard.get_length(file)
+        length = timedelta(seconds=length)
 
         server_dir = self.sound_path / str(ctx.guild.id)
 
