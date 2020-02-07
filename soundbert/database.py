@@ -1,5 +1,5 @@
 from sqlalchemy import Integer, Table, Column, MetaData, String, Text, BigInteger, DateTime, ForeignKey, Boolean, \
-    text, UniqueConstraint, func, Interval
+    text, UniqueConstraint, func, Float
 
 metadata = MetaData()
 
@@ -21,7 +21,9 @@ sounds = Table(
         Column('source', Text(), nullable=False),
         Column('uploader', BigInteger(), nullable=False),
         Column('upload_time', DateTime(timezone=True), server_default=func.now(), nullable=False),
-        Column('length', Interval(), nullable=False)
+        # this cannot be an Interval type until https://github.com/encode/databases/pull/149 is merged, and
+        # https://github.com/encode/databases/issues/141 is resolved.
+        Column('length', Float(), nullable=False)
 )
 
 sound_names = Table(

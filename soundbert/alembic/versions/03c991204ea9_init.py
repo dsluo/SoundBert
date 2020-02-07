@@ -33,7 +33,7 @@ def upgrade():
             sa.Column('source', sa.Text(), nullable=False),
             sa.Column('uploader', sa.BigInteger(), nullable=False),
             sa.Column('upload_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-            sa.Column('length', sa.Interval(), nullable=False),
+            sa.Column('length', sa.Float(), nullable=False),
             sa.PrimaryKeyConstraint('id')
     )
     op.execute("CREATE COLLATION case_insensitive (provider = icu, locale = 'und-u-ks-level2', deterministic = false)")
