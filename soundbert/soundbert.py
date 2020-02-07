@@ -9,7 +9,7 @@ from discord import Message
 from discord.ext import commands
 from sqlalchemy import select
 
-from .cogs.utils.reactions import no
+from .cogs.utils.reactions import err, warn
 from .config import Config
 from .database import guilds
 
@@ -94,12 +94,13 @@ class SoundBert(commands.Bot):
             f'In guild {ctx.guild.name}, channel {ctx.channel.name}, '
             f'{ctx.author.name} executed {ctx.message.content}, but encountered exception: {exception}'
         )
-        if not isinstance(exception, commands.UserInputError):
-            log.exception(log_msg, exc_info=exception)
-        else:
+        if isinstance(exception, (commands.UserInputError, commands.CheckFailure, commands.CommandOnCooldown)):
             log.debug(log_msg)
+            await warn(ctx)
+        else:
+            log.exception(log_msg, exc_info=exception)
+            await err(ctx)
 
-        await no(ctx)
         if len(exception.args) > 0:
             msg = await ctx.send(exception.args[0])
             try:

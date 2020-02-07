@@ -1,8 +1,10 @@
-# Adds checkmark emoji to ctx message
-async def yes(ctx):
-    await ctx.message.add_reaction('\U00002705')
+async def ok(ctx):
+    await ctx.message.add_reaction('\N{WHITE HEAVY CHECK MARK}')
 
 
-# Adds cancel sign emoji to ctx message
-async def no(ctx):
-    await ctx.message.add_reaction('\U0001f6ab')
+async def warn(ctx):
+    await ctx.message.add_reaction('\N{WARNING SIGN}')
+
+
+async def err(ctx):
+    await ctx.message.add_reaction('\N{NO ENTRY SIGN}')

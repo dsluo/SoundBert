@@ -2,8 +2,8 @@ import discord
 from discord.ext import commands
 from sqlalchemy import select
 
+from .utils.reactions import ok
 from ..database import guilds
-from .utils.reactions import yes
 from ..soundbert import SoundBert
 
 
@@ -72,7 +72,7 @@ class Settings(commands.Cog):
                 .where(guilds.c.id == ctx.guild.id)
                 .values(prefix=prefix)
         )
-        await yes(ctx)
+        await ok(ctx)
 
     @settings.command()
     @commands.check(is_botmaster)
@@ -89,7 +89,7 @@ class Settings(commands.Cog):
                 .where(guilds.c.id == ctx.guild.id)
                 .values(soundmaster=role.id)
         )
-        await yes(ctx)
+        await ok(ctx)
 
     @settings.command()
     @commands.check(is_botmaster)
@@ -105,7 +105,7 @@ class Settings(commands.Cog):
                 .where(guilds.c.id == ctx.guild.id)
                 .values(soundplayer=role.id)
         )
-        await yes(ctx)
+        await ok(ctx)
 
 
 def setup(bot):

@@ -1,7 +1,6 @@
 import asyncio
 import logging
 import shutil
-import time
 from collections import OrderedDict
 from pathlib import Path
 
@@ -15,7 +14,7 @@ from sqlalchemy import and_, select, func, exists, true, literal
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
 from ..utils.humantime import humanduration, TimeUnits
-from ..utils.reactions import yes
+from ..utils.reactions import ok
 from ...database import sounds, sound_names
 from ...soundbert import SoundBert
 
@@ -258,7 +257,7 @@ class SoundBoard(commands.Cog):
                             name=name
                     )
             )
-        await yes(ctx)
+        await ok(ctx)
 
     @commands.command()
     @commands.check(is_soundmaster)
@@ -294,7 +293,7 @@ class SoundBoard(commands.Cog):
             )
 
             if sound_exists is not None:
-                await yes(ctx)
+                await ok(ctx)
             else:
                 raise exceptions.SoundDoesNotExist(name)
         except asyncpg.UniqueViolationError:
@@ -330,7 +329,7 @@ class SoundBoard(commands.Cog):
 
         file = self.sound_path / str(ctx.guild.id) / filename
         file.unlink()
-        await yes(ctx)
+        await ok(ctx)
 
     @commands.command(aliases=['mv'])
     @commands.check(is_soundmaster)
@@ -352,7 +351,7 @@ class SoundBoard(commands.Cog):
                     ))
             )
             if sound_exists is not None:
-                await yes(ctx)
+                await ok(ctx)
             else:
                 raise exceptions.SoundDoesNotExist(name)
         except asyncpg.UniqueViolationError:
