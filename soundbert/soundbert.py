@@ -102,12 +102,11 @@ class SoundBert(commands.Bot):
             await err(ctx)
 
         if len(exception.args) > 0:
-            msg = await ctx.send(exception.args[0])
             try:
                 delay = int(exception.args[1])
             except (IndexError, ValueError):
                 delay = 60
-            await msg.delete(delay=delay)
+            await ctx.send(exception.args[0], delete_after=delay)
 
     async def on_command(self, ctx: commands.Context):
         """
