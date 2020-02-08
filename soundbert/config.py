@@ -1,3 +1,4 @@
+import dataclasses
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,9 +17,10 @@ class Config:
     def from_env(cls) -> 'Config':
         load_dotenv()
 
-        token = os.getenv('SOUNDBERT_TOKEN')
-        database_url = os.getenv('SOUNDBERT_DATABASE_URL')
-        default_prefix = os.getenv('SOUNDBERT_DEFAULT_PREFIX')
-        sound_path = os.getenv('SOUNDBERT_SOUND_PATH')
+        fields = {}
+        for field in dataclasses.fields(cls):
+            value = os.getenv('SOUNDBERT_' + field.name.upper())
+            if value is not None:
+                fields[field.name] = value
 
-        return cls(token, database_url, default_prefix, sound_path)
+        return cls(**fields)
