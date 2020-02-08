@@ -12,6 +12,7 @@ class Config:
     database_url: str
     default_prefix: str
     sound_path: Path
+    log_level: str = 'INFO'
 
     @classmethod
     def from_env(cls) -> 'Config':
