@@ -76,7 +76,7 @@ class SoundBert(commands.Bot):
 
         :param guild_id: The guild id
         """
-        log.debug(f'Ensure guild {guild_id} is in database.')
+        log.debug(f'Ensuring guild {guild_id} is in database.')
         query = guilds.insert().values(id=guild_id, prefix=self.config.default_prefix)
         try:
             await self.db.execute(query)
