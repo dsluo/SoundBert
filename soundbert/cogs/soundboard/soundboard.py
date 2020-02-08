@@ -490,11 +490,17 @@ class SoundBoard(commands.Cog):
 
         name = await self.bot.db.fetch_val(
                 select([sound_names.c.name])
-                    .where(and_(
-                        sound_names.c.guild_id == ctx.guild.id,
-                        ~sound_names.c.is_alias
-                ))
-                    .order_by(func.random())
+                    .where(
+                        and_(
+                                sound_names.c.guild_id == ctx.guild.id,
+                                ~sound_names.c.is_alias
+                        ))
+                    .offset(
+                        func.floor(
+                                func.random() *
+                                select([func.count()])
+                                .select_from(sound_names)
+                                .where(sound_names.c.guild_id == ctx.guild.id)))
                     .limit(1)
         )
         log.debug(f'Playing random sound {name}.')
