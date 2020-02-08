@@ -11,6 +11,7 @@ class Config:
     database_url: str
     default_prefix: str
     sound_path: str
+    extra_extensions: str = ''
     log_level: str = 'INFO'
 
     @classmethod

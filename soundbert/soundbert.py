@@ -39,6 +39,16 @@ class SoundBert(commands.Bot):
             self.load_extension(ext)
             log.debug(f'Loaded {ext}')
 
+        log.info('Loading extra extensions.')
+        for ext in self.config.extra_extensions.split(','):
+            ext = ext.strip()
+            try:
+                self.load_extension(ext)
+            except commands.ExtensionNotFound:
+                log.exception(f'Failed to load {ext}.')
+            else:
+                log.debug(f'Loaded {ext}.')
+
     def run(self):
         super(SoundBert, self).run(self.config.token)
 
