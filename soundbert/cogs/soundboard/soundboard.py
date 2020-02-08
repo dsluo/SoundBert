@@ -77,7 +77,6 @@ class SoundBoard(commands.Cog):
             else:
                 raise exceptions.SoundDoesNotExist(name)
 
-        filename = sound[sounds.c.filename]
         id = sound[sounds.c.id]
 
         file = self.sound_path / str(ctx.guild.id) / filename
@@ -308,33 +307,37 @@ class SoundBoard(commands.Cog):
     @commands.check(is_soundmaster)
     async def delete(self, ctx: commands.Context, name: str):
         """
-        Delete a sound.
+        Delete a sound or an alias.
 
-        :param name: The name of the sound to delete.
+        :param name: The name of the sound or alias to delete.
         """
-        filename = await self.bot.db.fetch_val(
-                select([sounds.c.filename])
-                    .select_from(sounds.join(sound_names))
-                    .where(and_(
-                        sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name
-                ))
-        )
-        if filename is None:
-            raise exceptions.SoundDoesNotExist(name)
-        else:
-            await self.bot.db.execute(
-                    sounds.delete()
+        async with self.bot.db.transaction():
+            sound_with_name = await self.bot.db.fetch_one(
+                    select([sound_names.c.id, sound_names.c.sound_id, sound_names.c.is_alias])
                         .where(and_(
                             sound_names.c.guild_id == ctx.guild.id,
-                            sounds.c.filename == filename,
-                            sound_names.c.sound_id == sounds.c.id
+                            sound_names.c.name == name
                     ))
             )
 
-        file = self.sound_path / str(ctx.guild.id) / filename
-        file.unlink()
-        await ok(ctx)
+            if sound_with_name is None:
+                raise exceptions.SoundDoesNotExist(name)
+
+            name_id = sound_with_name[sound_names.c.id]
+            sound_id = sound_with_name[sound_names.c.sound_id]
+            is_alias = sound_with_name[sound_names.c.is_alias]
+
+            if is_alias:
+                # if alias, just delete the alias.
+                await self.bot.db.execute(sound_names.delete().where(sound_names.c.id == name_id))
+            else:
+                # if not alias, delete the sound and CASCADE will take care of the names and aliases.
+                await self.bot.db.execute(sounds.delete().where(sounds.c.id == sound_id))
+
+            # aliases are symbolic links, so this will still work
+            file = self.sound_path / str(ctx.guild.id) / name
+            file.unlink()
+            await ok(ctx)
 
     @commands.command(aliases=['mv'])
     @commands.check(is_soundmaster)
