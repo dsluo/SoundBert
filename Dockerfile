@@ -3,9 +3,9 @@ FROM alpine
 LABEL maintainer="David Luo <me@dsluo.dev>"
 
 VOLUME "/var/lib/soundbert/sounds"
-VOLUME "/etc/soundbert"
+ENV SOUNDBERT_SOUND_PATH="/var/lib/soundbert/sounds"
 
-ENTRYPOINT ["soundbert", "--config", "/etc/soundbert/settings.toml"]
+ENTRYPOINT ["soundbert"]
 
 CMD ["run"]
 
