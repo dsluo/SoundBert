@@ -29,6 +29,11 @@ class SoundExists(commands.BadArgument):
         super(SoundExists, self).__init__(f'Sound `{name}` already exists.')
 
 
+class AliasTargetIsAlias(commands.BadArgument):
+    def __init__(self):
+        super(AliasTargetIsAlias, self).__init__('Cannot create alias of an alias.')
+
+
 class NegativeVolume(commands.BadArgument):
     def __init__(self):
         super(NegativeVolume, self).__init__('Volume cannot be less than 0%.')
@@ -48,8 +53,7 @@ class NoDownload(commands.BadArgument):
     def __init__(self):
         super(NoDownload, self).__init__('Download link or file attachment required.')
 
+
 class DownloadError(commands.CommandError):
     def __init__(self):
         super(DownloadError, self).__init__('Error while downloading.')
-
-

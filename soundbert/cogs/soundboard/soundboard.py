@@ -10,7 +10,7 @@ import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
 from humanize import naturaldelta
-from sqlalchemy import and_, select, func, exists, true, literal
+from sqlalchemy import and_, select, func, exists
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
@@ -268,36 +268,41 @@ class SoundBoard(commands.Cog):
         :param name: The sound to alias.
         :param alias: The alias to assign
         """
-        try:
-            sound_exists = await self.bot.db.fetch_val(
-                    sound_names.insert()
-                        .returning(sound_names.c.sound_id)
-                        .from_select(
-                            [
-                                sound_names.c.sound_id,
-                                sound_names.c.guild_id,
-                                sound_names.c.name,
-                                sound_names.c.is_alias
-                            ],
-                            select([
-                                sound_names.c.sound_id,
-                                sound_names.c.guild_id,
-                                literal(alias),
-                                true()
-                            ])
-                                .where(and_(
-                                    sound_names.c.guild_id == ctx.guild.id,
-                                    sound_names.c.name == name
-                            ))
-                    )
+        async with self.bot.db.transaction():
+            target_sound_name = await self.bot.db.fetch_one(
+                    sound_names.select([sound_names.c.sound_id, sound_names.c.is_alias])
+                        .where(and_(
+                            sound_names.c.guild_id == ctx.guild.id,
+                            sound_names.c.name == name
+                    ))
             )
 
-            if sound_exists is not None:
-                await ok(ctx)
-            else:
+            if target_sound_name is None:
                 raise exceptions.SoundDoesNotExist(name)
-        except asyncpg.UniqueViolationError:
-            raise exceptions.SoundExists(alias)
+
+            sound_id = target_sound_name[sound_names.c.name]
+            is_already_alias = target_sound_name[sound_names.c.is_alias]
+
+            if is_already_alias:
+                raise exceptions.AliasTargetIsAlias()
+
+            try:
+                await self.bot.db.execute(
+                        sound_names.insert()
+                            .values(
+                                sound_id=sound_id,
+                                guild_id=ctx.guild.id,
+                                name=alias,
+                                is_alias=True
+                        )
+                )
+
+                link = self.sound_path / str(ctx.guild.id) / alias
+                link.symlink_to(name)
+            except asyncpg.UniqueViolationError:
+                raise exceptions.SoundExists(alias)
+            else:
+                await ok(ctx)
 
     @commands.command(aliases=['del', 'rm'])
     @commands.check(is_soundmaster)
