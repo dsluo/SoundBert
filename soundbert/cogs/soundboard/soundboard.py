@@ -345,25 +345,28 @@ class SoundBoard(commands.Cog):
         """
         Rename a sound or alias.
 
-        :param name: The name of the sound/alias to rename.
+        :param name: The name of the sound or alias to rename.
         :param new_name: The new name.
         """
-        try:
-            sound_exists = await self.bot.db.fetch_val(
-                    sound_names.update()
-                        .returning(sound_names.c.id)
-                        .values(name=new_name)
-                        .where(and_(
-                            sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name
-                    ))
-            )
-            if sound_exists is not None:
-                await ok(ctx)
+        async with self.bot.db.transaction():
+            try:
+                sound_exists = await self.bot.db.fetch_val(
+                        sound_names.update()
+                            .returning(sound_names.c.id)
+                            .values(name=new_name)
+                            .where(and_(
+                                sound_names.c.guild_id == ctx.guild.id,
+                                sound_names.c.name == name
+                        ))
+                )
+                if sound_exists is None:
+                    raise exceptions.SoundDoesNotExist(name)
+                file = self.sound_path / str(ctx.guild.id) / name
+                file.rename(new_name)
+            except asyncpg.UniqueViolationError:
+                raise exceptions.SoundExists(new_name)
             else:
-                raise exceptions.SoundDoesNotExist(name)
-        except asyncpg.UniqueViolationError:
-            raise exceptions.SoundExists(new_name)
+                await ok(ctx)
 
     @commands.command(aliases=['ls'])
     @commands.check(is_soundplayer)
