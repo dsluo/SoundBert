@@ -1,7 +1,6 @@
 import dataclasses
 import os
 from dataclasses import dataclass
-from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -11,7 +10,7 @@ class Config:
     token: str
     database_url: str
     default_prefix: str
-    sound_path: Path
+    sound_path: str
     log_level: str = 'INFO'
 
     @classmethod
