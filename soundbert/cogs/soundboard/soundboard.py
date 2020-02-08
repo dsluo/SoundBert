@@ -267,7 +267,7 @@ class SoundBoard(commands.Cog):
         """
         async with self.bot.db.transaction():
             target_sound_name = await self.bot.db.fetch_one(
-                    sound_names.select([sound_names.c.sound_id, sound_names.c.is_alias])
+                    select([sound_names.c.sound_id, sound_names.c.is_alias])
                         .where(and_(
                             sound_names.c.guild_id == ctx.guild.id,
                             sound_names.c.name == name
@@ -277,7 +277,7 @@ class SoundBoard(commands.Cog):
             if target_sound_name is None:
                 raise exceptions.SoundDoesNotExist(name)
 
-            sound_id = target_sound_name[sound_names.c.name]
+            sound_id = target_sound_name[sound_names.c.sound_id]
             is_already_alias = target_sound_name[sound_names.c.is_alias]
 
             if is_already_alias:
