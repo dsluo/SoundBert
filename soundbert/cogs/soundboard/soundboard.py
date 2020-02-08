@@ -14,6 +14,7 @@ from sqlalchemy import and_, select, func, exists
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
+from ..utils.pluralize import pluralize
 from ..utils.reactions import ok
 from ...database import sounds, sound_names
 from ...soundbert import SoundBert
@@ -70,10 +71,10 @@ class SoundBoard(commands.Cog):
         )
 
         if sound_id is None:
-            results = await self._search(ctx.guild.id, name)
-            if len(results) > 0:
-                results = '\n'.join(results)
-                raise exceptions.SoundDoesNotExist(name, results)
+            records = await self._search(ctx.guild.id, name)
+            if len(records) > 0:
+                records = '\n'.join(record[sound_names.c.name] for record in records)
+                raise exceptions.SoundDoesNotExist(name, records)
             else:
                 raise exceptions.SoundDoesNotExist(name)
 
@@ -513,27 +514,36 @@ class SoundBoard(commands.Cog):
         Search for a sound.
         """
 
-        results = await self._search(ctx.guild.id, query)
+        records = await self._search(ctx.guild.id, query)
 
-        if not results:
+        if not records:
             await ctx.send('No results found.')
         else:
-            response = f'Found {len(results)} result{"s" if len(results) != 1 else ""}.\n' + '\n'.join(results)
+            results = [
+                f'*{record[sound_names.c.name]}*' if record[sound_names.c.is_alias] else record[sound_names.c.name]
+                for record in records
+            ]
+            header = f'Found {len(results)} {pluralize(len(results), "result")}.'
+
+            has_aliases = sum(1 for record in records if record[sound_names.c.is_alias]) > 0
+            if has_aliases:
+                header += ' Aliases are *italicized*.\n'
+            else:
+                header += '\n'
+
+            response = header + '\n'.join(results)
             await ctx.send(response)
 
-    async def _search(self, guild_id, query, alias=None, threshold=0.1, limit=10):
+    async def _search(self, guild_id, query, alias=None, limit=10):
         """
         Search for a sound.
 
         :param guild_id: The guild ID.
         :param query: The sound to search.
         :param alias: True for only aliases, False for no aliases, None for any.
-        :param threshold: The similarity threshold.
         :param limit: Maximum number of results to produce.
         :return:
         """
-
-        await self.bot.db.execute(query=f'SET pg_trgm.similarity_threshold = {threshold}')
 
         whereclause = and_(
                 # The first % escapes the second % here.
@@ -546,13 +556,15 @@ class SoundBoard(commands.Cog):
                     sound_names.c.is_alias == alias
             )
 
-        results = await self.bot.db.fetch_all(
-                select([sound_names.c.name])
+        similarity = func.similarity(sound_names.c.name, query).label('similarity')
+
+        return await self.bot.db.fetch_all(
+                select([
+                    sound_names.c.name,
+                    sound_names.c.is_alias,
+                    # similarity
+                ])
                     .where(whereclause)
-                    .order_by(func.similarity(sound_names.c.name, query).desc())
+                    .order_by(similarity.desc())
                     .limit(limit)
         )
-
-        results = [record[sound_names.c.name] for record in results]
-
-        return results
