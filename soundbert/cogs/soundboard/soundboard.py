@@ -60,8 +60,8 @@ class SoundBoard(commands.Cog):
         except AttributeError:
             raise exceptions.NoChannel()
 
-        sound = await self.bot.db.fetch_one(
-                select([sounds.c.filename, sounds.c.id])
+        sound_id = await self.bot.db.fetch_val(
+                select([sounds.c.id])
                     .select_from(sounds.join(sound_names))
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
@@ -69,7 +69,7 @@ class SoundBoard(commands.Cog):
                 ))
         )
 
-        if sound is None:
+        if sound_id is None:
             results = await self._search(ctx.guild.id, name)
             if len(results) > 0:
                 results = '\n'.join(results)
@@ -77,9 +77,7 @@ class SoundBoard(commands.Cog):
             else:
                 raise exceptions.SoundDoesNotExist(name)
 
-        id = sound[sounds.c.id]
-
-        file = self.sound_path / str(ctx.guild.id) / filename
+        file = self.sound_path / str(ctx.guild.id) / name
 
         volume = None
         speed = None
@@ -124,7 +122,7 @@ class SoundBoard(commands.Cog):
             volume = 100
 
         log.debug(
-                f'Playing sound {name} ({id}) in #{channel.name} ({channel.id}) of guild {ctx.guild.name} ({ctx.guild.id}).'
+                f'Playing sound {name} ({sound_id}) in #{channel.name} ({channel.id}) of guild {ctx.guild.name} ({ctx.guild.id}).'
         )
 
         log.debug('Connecting to voice channel.')
@@ -141,7 +139,7 @@ class SoundBoard(commands.Cog):
         async def stop():
             log.debug('Stopping playback.')
             await vclient.disconnect(force=True)
-            return id
+            return sound_id
 
         def wrapper(error):
             try:
@@ -161,7 +159,7 @@ class SoundBoard(commands.Cog):
         await self.bot.db.execute(
                 sounds.update()
                     .values(played=sounds.c.played + 1)
-                    .where(sounds.c.id == id)
+                    .where(sounds.c.id == sound_id)
         )
 
         log.debug('Starting playback.')
