@@ -16,14 +16,15 @@ RUN apk update \
     && apk add --no-cache \
     python3 \
     ffmpeg \
+# this is for alembic
+    postgresql-dev \
 ## build deps
     && apk add --no-cache --virtual build-deps \
     gcc \
     python3-dev \
     musl-dev \
     libffi-dev \
-    make \
-    postgresql-dev
+    make
 
 # install soundbert python dependencies
 COPY ./requirements.txt /tmp/soundbert
