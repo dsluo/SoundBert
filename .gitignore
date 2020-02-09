@@ -109,3 +109,6 @@ settings.toml
 
 # Generated Directories
 sounds/
+postgres/
+
+docker-compose.yml
