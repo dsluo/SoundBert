@@ -1,5 +1,5 @@
 include README.md
 include LICENSE
 include requirements.txt
-include soundbert/alembic/*
-include alembic.ini
+recursive-include soundbert/alembic/ *
+include soundbert/alembic.ini
