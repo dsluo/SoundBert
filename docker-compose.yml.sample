@@ -10,7 +10,8 @@ services:
       - ./postgres:/var/lib/postgresql/data
     restart: unless-stopped
   soundbert:
-    build: .
+    build:
+      context: https://github.com/dsluo/SoundBert.git
     image: soundbert:latest
     container_name: soundbert
     environment:
