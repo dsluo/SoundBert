@@ -1,9 +1,11 @@
 import asyncio
 import logging
 import shutil
+import tempfile
 from collections import OrderedDict
 from pathlib import Path
 
+import aiohttp
 import asyncpg
 import discord
 import youtube_dl
@@ -166,6 +168,69 @@ class SoundBoard(commands.Cog):
         log.debug('Starting playback.')
         vclient.play(source=source, after=wrapper)
 
+    @commands.command(name='import', hidden=True)
+    # @commands.check(is_soundmaster)
+    @commands.is_owner()
+    async def import_(self, ctx: commands.Context, source: str = None):
+        """
+        Imports sounds from an archive. Sounds are named the name of the file in the archive.
+        Supports .zip, .tar, .tar.gz, .tgz, .tar.bz2, .tbz2, .tar.xz, and .txz archives.
+
+        :param source: Download link to an archive. Can be omitted if archive is uploaded as an attachment.
+        """
+
+        if source is None:
+            try:
+                source = ctx.message.attachments[0].url
+            except (IndexError, KeyError):
+                raise exceptions.NoDownload()
+
+        with tempfile.NamedTemporaryFile('wb+') as f, tempfile.TemporaryDirectory() as d:
+
+            async with aiohttp.ClientSession() as session:
+                async with session.get(source) as resp:
+                    filename = resp.url.name
+
+                    # this might block but i don't care.
+                    while True:
+                        chunk = await resp.content.read(1 << 20)  # 1 MB
+                        if not chunk:
+                            break
+                        f.write(chunk)
+
+            f.seek(0)  # this probably doesn't matter
+
+            format = None
+            for fmt in shutil.get_unpack_formats():
+                for extension in fmt[1]:
+                    if filename.endswith(extension):
+                        format = fmt[0]
+                        break
+                # this weird stuff is because python has no syntax for
+                # breaking out of multiple loops.
+                else:
+                    continue
+                break
+
+            shutil.unpack_archive(f.name, d, format=format)
+            f.close()
+
+            succeeded = []
+            failed = []
+            for path in Path(d).glob('**/*'):
+                if not path.is_file():
+                    continue
+                try:
+                    await self._add(ctx, path.name, source, path, unlink=False)
+                    succeeded.append(path.name)
+                except FileExistsError:
+                    failed.append(path.name)
+            msg = f'{len(succeeded)} imported. {len(failed)} failed.'
+            if failed:
+                msg += '\nFailed imports:\n'
+                msg += '\n'.join(failed)
+            await ctx.send(msg)
+
     @commands.command()
     @commands.check(is_soundmaster)
     async def add(self, ctx: commands.Context, name: str, source: str = None):
@@ -221,20 +286,31 @@ class SoundBoard(commands.Cog):
         except youtube_dl.DownloadError:
             raise exceptions.DownloadError()
 
-        # info should have duration, but I already had get_length written so why not.
-        length = info.get('duration') or await SoundBoard.get_length(file)
+        length = info.get('duration')
+
+        try:
+            await self._add(ctx, name, source, file, length=length, unlink=True)
+        except FileExistsError:
+            raise exceptions.SoundExists(name)
+
+        await ok(ctx)
+
+    async def _add(self, ctx: commands.Context, name: str, source: str, file: Path, length=None, unlink=False):
+        if not length:
+            length = await SoundBoard.get_length(file)
 
         server_dir = self.sound_path / str(ctx.guild.id)
 
         if not server_dir.exists():
             server_dir.mkdir()
 
-        try:
-            # allows this to work on docker
-            shutil.move(str(file), str(server_dir / name))
-        except FileExistsError:
-            file.unlink()
-            raise exceptions.SoundExists(name)
+        if (server_dir / name).exists():
+            if unlink:
+                file.unlink()
+            raise FileExistsError
+
+        # allows this to work on docker
+        shutil.move(str(file), str(server_dir / name))
 
         async with self.bot.db.transaction():
             sound_id = await self.bot.db.fetch_val(
@@ -255,7 +331,6 @@ class SoundBoard(commands.Cog):
                             name=name
                     )
             )
-        await ok(ctx)
 
     @commands.command()
     @commands.check(is_soundmaster)
