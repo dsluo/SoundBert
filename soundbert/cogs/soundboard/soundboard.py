@@ -168,17 +168,17 @@ class SoundBoard(commands.Cog):
 
     @commands.command()
     @commands.check(is_soundmaster)
-    async def add(self, ctx: commands.Context, name: str, link: str = None):
+    async def add(self, ctx: commands.Context, name: str, source: str = None):
         """
         Add a new sound to the soundboard.
 
         :param name: The name of the new sound.
-        :param link: Download link to new sound. If omitted, command must be called in the comment of an attachment.
+        :param source: Download link to new sound. Can be omitted if sound is uploaded as an attachment.
         """
         # Resolve download url.
-        if link is None:
+        if source is None:
             try:
-                link = ctx.message.attachments[0].url
+                source = ctx.message.attachments[0].url
             except (IndexError, KeyError):
                 raise exceptions.NoDownload()
 
@@ -217,7 +217,7 @@ class SoundBoard(commands.Cog):
             return info, Path(filename)
 
         try:
-            info, file = await self.bot.loop.run_in_executor(None, download_sound, link)
+            info, file = await self.bot.loop.run_in_executor(None, download_sound, source)
         except youtube_dl.DownloadError:
             raise exceptions.DownloadError()
 
@@ -242,7 +242,7 @@ class SoundBoard(commands.Cog):
                         .returning(sounds.c.id)
                         .values(
                             uploader=ctx.author.id,
-                            source=link,
+                            source=source,
                             length=length
                     )
             )
