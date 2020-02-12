@@ -10,11 +10,11 @@ import discord
 import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
-from humanize import naturaldelta
 from sqlalchemy import and_, select, func, exists
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
+from ..utils.humantime import humanduration, TimeUnits
 from ..utils.paginator import DictionaryPaginator
 from ..utils.pluralize import pluralize
 from ..utils.reactions import ok
@@ -543,8 +543,7 @@ class SoundBoard(commands.Cog):
             embed.add_field(name='Source', value=sound[sounds.c.source])
         embed.add_field(name='Played', value=sound[sounds.c.played])
         embed.add_field(name='Stopped', value=sound[sounds.c.stopped])
-        embed.add_field(name='Length', value=naturaldelta(sound[sounds.c.length]))
-
+        embed.add_field(name='Length', value=humanduration(sound[sounds.c.length], TimeUnits.MILLISECONDS))
         if aliases:
             embed.add_field(name='Aliases', value=', '.join(aliases))
 

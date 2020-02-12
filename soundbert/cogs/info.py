@@ -2,8 +2,8 @@ from datetime import datetime
 from importlib.metadata import version
 
 from discord.ext import commands
-from humanize import naturaldelta
 
+from .utils.humantime import humanduration
 from ..soundbert import SoundBert
 
 
@@ -46,7 +46,7 @@ class Info(commands.Cog):
         """
         time = datetime.now() - self.bot.startup
 
-        uptime = naturaldelta(time)
+        uptime = humanduration(time.total_seconds())
         await ctx.send(f'Uptime: {uptime}.')
 
 
