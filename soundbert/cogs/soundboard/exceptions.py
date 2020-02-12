@@ -61,3 +61,8 @@ class DownloadError(commands.CommandError):
 class NoSounds(commands.CommandError):
     def __init__(self):
         super(NoSounds, self).__init__('No sounds yet.')
+
+
+class NameTooLong(commands.CommandError):
+    def __init__(self):
+        super(NameTooLong, self).__init__('Sound names and aliases must be 255 characters or less.')

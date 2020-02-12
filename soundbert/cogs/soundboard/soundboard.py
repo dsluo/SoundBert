@@ -241,6 +241,10 @@ class SoundBoard(commands.Cog):
         :param source: Download link to new sound. Can be omitted if sound is uploaded as an attachment.
         """
         # Resolve download url.
+
+        if len(name) > 255:
+            raise exceptions.NameTooLong()
+
         if source is None:
             try:
                 source = ctx.message.attachments[0].url
@@ -341,6 +345,10 @@ class SoundBoard(commands.Cog):
         :param name: The sound to alias.
         :param alias: The alias to assign
         """
+
+        if len(alias) > 255:
+            raise exceptions.NameTooLong()
+
         async with self.bot.db.transaction():
             target_sound_name = await self.bot.db.fetch_one(
                     select([sound_names.c.sound_id, sound_names.c.is_alias])
@@ -422,6 +430,10 @@ class SoundBoard(commands.Cog):
         :param name: The name of the sound or alias to rename.
         :param new_name: The new name.
         """
+
+        if len(new_name) > 255:
+            raise exceptions.NameTooLong()
+
         async with self.bot.db.transaction():
             try:
                 sound_exists = await self.bot.db.fetch_val(

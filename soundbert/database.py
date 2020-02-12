@@ -32,7 +32,7 @@ sound_names = Table(
         Column('id', Integer(), primary_key=True),
         Column('sound_id', Integer(), ForeignKey('sounds.id', ondelete='CASCADE'), nullable=False),
         Column('guild_id', BigInteger(), ForeignKey('guilds.id', ondelete='CASCADE'), nullable=False),
-        Column('name', String(collation='case_insensitive'), nullable=False),
+        Column('name', String(length=255, collation='case_insensitive'), nullable=False),
         Column('is_alias', Boolean(), server_default=text('false'), nullable=False),
         UniqueConstraint('sound_id', 'guild_id', 'name')
 )
