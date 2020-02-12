@@ -26,6 +26,8 @@ log = logging.getLogger(__name__)
 
 # noinspection PyIncorrectDocstring
 class SoundBoard(commands.Cog):
+    STOP = '\N{OCTAGONAL SIGN}'
+
     def __init__(self, bot: 'SoundBert'):
         self.sound_path = Path(bot.config.sound_path)
         self.bot = bot
@@ -63,22 +65,24 @@ class SoundBoard(commands.Cog):
         except AttributeError:
             raise exceptions.NoChannel()
 
-        sound_id = await self.bot.db.fetch_val(
-                select([sounds.c.id])
-                    .select_from(sounds.join(sound_names))
+        sound = await self.bot.db.fetch_one(
+                select([sounds.join(sound_names)])
                     .where(and_(
                         sound_names.c.guild_id == ctx.guild.id,
                         sound_names.c.name == name
                 ))
         )
 
-        if sound_id is None:
+        if sound is None:
             records = await self._search(ctx.guild.id, name)
             if len(records) > 0:
                 records = '\n'.join(record[sound_names.c.name] for record in records)
                 raise exceptions.SoundDoesNotExist(name, records)
             else:
                 raise exceptions.SoundDoesNotExist(name)
+
+        sound_id = sound[sound_names.c.sound_id]
+        name = sound[sound_names.c.name]
 
         file = self.sound_path / str(ctx.guild.id) / name
 
