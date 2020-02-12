@@ -1,4 +1,5 @@
 from datetime import datetime
+from importlib.metadata import version
 
 from discord.ext import commands
 from humanize import naturaldelta
@@ -34,7 +35,7 @@ class Info(commands.Cog):
         """
         Provides some basic info about the bot.
         """
-        await ctx.send('SoundBert by dsluo\n'
+        await ctx.send(f'SoundBert v{version("soundbert")} by dsluo\n'
                        'Written in Python using discord.py\n'
                        'https://github.com/dsluo/SoundBert/')
 
