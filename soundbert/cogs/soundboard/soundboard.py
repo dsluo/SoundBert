@@ -2,7 +2,6 @@ import asyncio
 import logging
 import shutil
 import tempfile
-from collections import OrderedDict
 from pathlib import Path
 
 import aiohttp
@@ -16,6 +15,7 @@ from sqlalchemy import and_, select, func, exists
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
+from ..utils.paginator import DictionaryPaginator
 from ..utils.pluralize import pluralize
 from ..utils.reactions import ok
 from ...database import sounds, sound_names
@@ -459,29 +459,11 @@ class SoundBoard(commands.Cog):
         )
 
         if len(all_sounds) == 0:
-            message = 'No sounds yet.'
-        else:
-            split = OrderedDict()
-            for sound in all_sounds:
-                name = sound[sound_names.c.name]
-                first = name[0].lower()
-                if first not in 'abcdefghijklmnopqrstuvwxyz':
-                    first = '#'
-                if first not in split.keys():
-                    split[first] = [name]
-                else:
-                    split[first].append(name)
+            raise exceptions.NoSounds()
 
-            message = '**Sounds**\n'
-            for letter, sounds_ in split.items():
-                line = f'**`{letter}`**: {", ".join(sounds_)}\n'
-                if len(message) + len(line) > 2000:
-                    await ctx.send(message)
-                    message = ''
-                message += line
-
-        if message:
-            await ctx.send(message)
+        all_sounds = [sound[sound_names.c.name] for sound in all_sounds]
+        paginator = DictionaryPaginator(ctx, items=all_sounds, header='**Sounds**')
+        await paginator.paginate()
 
     @commands.command()
     @commands.check(is_soundplayer)

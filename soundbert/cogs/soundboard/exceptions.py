@@ -57,3 +57,7 @@ class NoDownload(commands.BadArgument):
 class DownloadError(commands.CommandError):
     def __init__(self):
         super(DownloadError, self).__init__('Error while downloading.')
+
+class NoSounds(commands.CommandError):
+    def __init__(self):
+        super(NoSounds, self).__init__('No sounds yet.')
