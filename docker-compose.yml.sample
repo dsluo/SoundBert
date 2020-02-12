@@ -27,4 +27,6 @@ services:
       - SOUNDBERT_LOG_LEVEL=${SOUNDBERT_LOG_LEVEL}
     volumes:
       - ./sounds:/var/lib/soundbert/sounds
+    depends-on:
+      - postgres
     restart: unless-stopped
