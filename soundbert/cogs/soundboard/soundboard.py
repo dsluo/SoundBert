@@ -448,7 +448,8 @@ class SoundBoard(commands.Cog):
                 if sound_exists is None:
                     raise exceptions.SoundDoesNotExist(name)
                 file = self.sound_path / str(ctx.guild.id) / name
-                file.rename(new_name)
+                renamed = file.with_name(new_name)
+                shutil.move(str(file), str(renamed))
             except asyncpg.UniqueViolationError:
                 raise exceptions.SoundExists(new_name)
             else:
