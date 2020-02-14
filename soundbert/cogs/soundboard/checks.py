@@ -51,3 +51,4 @@ async def is_soundplayer(ctx: commands.Context):
 async def is_in_voice(ctx: commands.Context):
     if not hasattr(ctx.author, 'voice'):
         raise exceptions.NoChannel()
+    return True
