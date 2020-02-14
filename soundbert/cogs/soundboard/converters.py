@@ -81,13 +81,3 @@ class NewSound(SoundConverter):
         if exists:
             raise exceptions.SoundExists(name)
         return pathvalidate.sanitize_filename(name)
-
-
-class SoundSource(commands.Converter):
-    async def convert(self, ctx, source):
-        if source is None:
-            try:
-                source = ctx.message.attachments[0].url
-            except (IndexError, KeyError):
-                raise exceptions.NoDownload()
-        return source

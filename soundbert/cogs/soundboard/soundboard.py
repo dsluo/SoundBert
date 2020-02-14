@@ -14,7 +14,7 @@ from sqlalchemy import and_, select, func, true
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
-from .converters import ExistingSound, NewSound, SoundSource
+from .converters import ExistingSound, NewSound
 from ..utils.humantime import humanduration, TimeUnits
 from ..utils.paginator import DictionaryPaginator
 from ..utils.pluralize import pluralize
@@ -166,13 +166,19 @@ class SoundBoard(commands.Cog):
     @commands.command(name='import', hidden=True)
     # @commands.check(is_soundmaster)
     @commands.is_owner()
-    async def import_(self, ctx: commands.Context, source: SoundSource() = None):
+    async def import_(self, ctx: commands.Context, source: str = None):
         """
         Imports sounds from an archive. Sounds are named the name of the file in the archive.
         Supports .zip, .tar, .tar.gz, .tgz, .tar.bz2, .tbz2, .tar.xz, and .txz archives.
 
         :param source: Download link to an archive. Can be omitted if archive is uploaded as an attachment.
         """
+        if source is None:
+            try:
+                source = ctx.message.attachments[0].url
+            except (IndexError, KeyError):
+                raise exceptions.NoDownload()
+
         with tempfile.NamedTemporaryFile('wb+') as f, tempfile.TemporaryDirectory() as d:
 
             async with aiohttp.ClientSession() as session:
@@ -221,13 +227,18 @@ class SoundBoard(commands.Cog):
 
     @commands.command()
     @commands.check(is_soundmaster)
-    async def add(self, ctx: commands.Context, name: NewSound(), source: SoundSource() = None):
+    async def add(self, ctx: commands.Context, name: NewSound(), source: str = None):
         """
         Add a new sound to the soundboard.
 
         :param name: The name of the new sound.
         :param source: Download link to new sound. Can be omitted if sound is uploaded as an attachment.
         """
+        if source is None:
+            try:
+                source = ctx.message.attachments[0].url
+            except (IndexError, KeyError):
+                raise exceptions.NoDownload()
 
         # Download file
         await ctx.trigger_typing()
