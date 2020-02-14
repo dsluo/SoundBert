@@ -14,7 +14,7 @@ from discord.ext import commands
 from sqlalchemy import and_, select, func, true
 
 from . import exceptions
-from .checks import is_soundmaster, is_soundplayer
+from .checks import is_soundmaster, is_soundplayer, is_in_voice
 from .converters import ExistingSound, NewSound, PlaybackArgumentConverter
 from ..utils.humantime import humanduration, TimeUnits
 from ..utils.paginator import DictionaryPaginator
@@ -58,6 +58,7 @@ class SoundBoard(commands.Cog):
 
     @commands.command(aliases=['!'])
     @commands.check(is_soundplayer)
+    @commands.check(is_in_voice)
     async def play(
             self,
             ctx: commands.Context,
@@ -71,15 +72,12 @@ class SoundBoard(commands.Cog):
         :param sound: The name of the sound to play.
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
-        try:
-            channel: discord.VoiceChannel = ctx.author.voice.channel
-        except AttributeError:
-            raise exceptions.NoChannel()
-
         sound_id = sound[sound_names.c.sound_id]
         name = sound[sound_names.c.name]
 
         file = self.sound_path / str(ctx.guild.id) / name
+
+        channel: discord.VoiceChannel = ctx.author.voice.channel
 
         log.debug(
                 f'Playing sound {name} ({sound_id}) in #{channel.name} ({channel.id}) of guild {ctx.guild.name} ({ctx.guild.id}).'
@@ -470,6 +468,7 @@ class SoundBoard(commands.Cog):
 
     @commands.command()
     @commands.check(is_soundplayer)
+    @commands.check(is_in_voice)
     async def rand(self, ctx: commands.Context, *, args: PlaybackArgumentConverter() = _DEFAULT_PLAYBACK_ARGUMENTS):
         """
         Play a random sound.

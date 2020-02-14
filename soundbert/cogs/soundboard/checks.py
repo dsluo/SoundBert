@@ -2,8 +2,8 @@ import discord
 from discord.ext import commands
 from sqlalchemy import select
 
-from ...database import guilds
 from . import exceptions
+from ...database import guilds
 
 
 async def is_soundmaster(ctx: commands.Context):
@@ -46,3 +46,8 @@ async def is_soundplayer(ctx: commands.Context):
 
     soundplayer = ctx.guild.get_role(soundplayer)
     raise exceptions.NotSoundplayer(soundplayer)
+
+
+async def is_in_voice(ctx: commands.Context):
+    if not hasattr(ctx.author, 'voice'):
+        raise exceptions.NoChannel()
