@@ -48,6 +48,10 @@ class BadPlaybackArgs(commands.ArgumentParsingError):
     def __init__(self, args):
         super(BadPlaybackArgs, self).__init__(f'Cound not parse `{args}`.')
 
+class BadPlaybackRange(commands.UserInputError):
+    def __init__(self, min, max, arg):
+        super(BadPlaybackRange, self).__init__(f'{arg.capitalize()} must be between {min} and {max}.')
+
 
 class NoDownload(commands.BadArgument):
     def __init__(self):

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import shutil
 import tempfile
+from collections import namedtuple
 from pathlib import Path
 
 import aiohttp
@@ -14,7 +15,7 @@ from sqlalchemy import and_, select, func, true
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
-from .converters import ExistingSound, NewSound
+from .converters import ExistingSound, NewSound, PlaybackArgumentConverter
 from ..utils.humantime import humanduration, TimeUnits
 from ..utils.paginator import DictionaryPaginator
 from ..utils.pluralize import pluralize
@@ -23,6 +24,9 @@ from ...database import sounds, sound_names
 from ...soundbert import SoundBert
 
 log = logging.getLogger(__name__)
+
+PlaybackArgument = namedtuple('PlaybackArgument', ['volume', 'speed', 'seek'])
+_DEFAULT_PLAYBACK_ARGUMENTS = PlaybackArgument(1.0, None, None)
 
 
 # noinspection PyIncorrectDocstring
@@ -59,7 +63,7 @@ class SoundBoard(commands.Cog):
             ctx: commands.Context,
             sound: ExistingSound([sound_names.c.sound_id, sound_names.c.name], suggestions=True),
             *,
-            args=None
+            args: PlaybackArgumentConverter = _DEFAULT_PLAYBACK_ARGUMENTS
     ):
         """
         Play a sound.
@@ -77,48 +81,6 @@ class SoundBoard(commands.Cog):
 
         file = self.sound_path / str(ctx.guild.id) / name
 
-        volume = None
-        speed = None
-        seek = None
-
-        if args is not None:
-            for arg in args.split():
-                if volume is None and arg.startswith('v'):
-                    try:
-                        volume = int(arg[1:-1] if arg.endswith('%') else arg[1:])
-                        if volume < 0:
-                            raise exceptions.NegativeVolume()
-                    except ValueError:
-                        raise exceptions.BadPlaybackArgs(args)
-                elif speed is None and arg.startswith('s'):
-                    try:
-                        speed = int(arg[1:-1] if arg.endswith('%') else arg[1:])
-                        if speed < 0:
-                            raise exceptions.NegativeSpeed()
-                    except ValueError:
-                        raise exceptions.BadPlaybackArgs(args)
-                elif arg.startswith('t'):
-                    try:
-                        split = args[1:].split(':', maxsplit=2)
-                        hours, mins, secs = ['0'] * (3 - len(split)) + split
-
-                        # prevents command line injection
-                        hours = int(hours or 0)
-                        mins = int(mins or 0)
-                        secs = int(secs or 0)
-
-                        # if any one of them are > 60, resolve it
-                        carry, secs = divmod(secs, 60)
-                        carry, mins = divmod(mins + carry, 60)
-                        hours += carry
-
-                        seek = f'{hours}:{mins:02}:{secs:02}' if hours or mins or secs else None
-                    except ValueError:
-                        raise exceptions.BadPlaybackArgs(args)
-
-        if volume is None:
-            volume = 100
-
         log.debug(
                 f'Playing sound {name} ({sound_id}) in #{channel.name} ({channel.id}) of guild {ctx.guild.name} ({ctx.guild.id}).'
         )
@@ -129,10 +91,10 @@ class SoundBoard(commands.Cog):
 
         source = discord.FFmpegPCMAudio(
                 str(file),
-                before_options=f'-ss {seek}' if seek else None,
-                options=f'-filter:a "atempo={speed / 100}"' if speed else None
+                before_options=f'-ss {args.seek}' if args.seek else None,
+                options=f'-filter:a "atempo={args.speed}"' if args.speed else None
         )
-        source = discord.PCMVolumeTransformer(source, volume=volume / 100)
+        source = discord.PCMVolumeTransformer(source, volume=args.volume if args.volume else 1.0)
 
         async def stop():
             log.debug('Stopping playback.')
@@ -508,15 +470,15 @@ class SoundBoard(commands.Cog):
 
     @commands.command()
     @commands.check(is_soundplayer)
-    async def rand(self, ctx: commands.Context, *, args=None):
+    async def rand(self, ctx: commands.Context, *, args: PlaybackArgumentConverter() = _DEFAULT_PLAYBACK_ARGUMENTS):
         """
         Play a random sound.
 
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
 
-        name = await self.bot.db.fetch_val(
-                select([sound_names.c.name])
+        sound = await self.bot.db.fetch_one(
+                select([sound_names.c.sound_id, sound_names.c.name])
                     .where(
                         and_(
                                 sound_names.c.guild_id == ctx.guild.id,
@@ -530,8 +492,8 @@ class SoundBoard(commands.Cog):
                                 .where(sound_names.c.guild_id == ctx.guild.id)))
                     .limit(1)
         )
-        log.debug(f'Playing random sound {name}.')
-        await ctx.invoke(self.play, name, args=args)
+        log.debug(f'Playing random sound {sound[sound_names.c.name]}.')
+        await ctx.invoke(self.play, sound, args=args)
 
     @commands.command(aliases=['find'])
     @commands.check(is_soundplayer)
