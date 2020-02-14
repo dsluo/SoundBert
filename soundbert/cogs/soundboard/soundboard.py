@@ -10,10 +10,11 @@ import discord
 import youtube_dl
 from discord import VoiceClient
 from discord.ext import commands
-from sqlalchemy import and_, select, func, exists
+from sqlalchemy import and_, select, func, true
 
 from . import exceptions
 from .checks import is_soundmaster, is_soundplayer
+from .converters import ExistingSound, NewSound
 from ..utils.humantime import humanduration, TimeUnits
 from ..utils.paginator import DictionaryPaginator
 from ..utils.pluralize import pluralize
@@ -53,33 +54,23 @@ class SoundBoard(commands.Cog):
 
     @commands.command(aliases=['!'])
     @commands.check(is_soundplayer)
-    async def play(self, ctx: commands.Context, name: str, *, args=None):
+    async def play(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sound_names.c.sound_id, sound_names.c.name], suggestions=True),
+            *,
+            args=None
+    ):
         """
         Play a sound.
 
-        :param name: The name of the sound to play.
+        :param sound: The name of the sound to play.
         :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
         try:
             channel: discord.VoiceChannel = ctx.author.voice.channel
         except AttributeError:
             raise exceptions.NoChannel()
-
-        sound = await self.bot.db.fetch_one(
-                select([sounds.join(sound_names)])
-                    .where(and_(
-                        sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name
-                ))
-        )
-
-        if sound is None:
-            records = await self._search(ctx.guild.id, name)
-            if len(records) > 0:
-                records = '\n'.join(record[sound_names.c.name] for record in records)
-                raise exceptions.SoundDoesNotExist(name, records)
-            else:
-                raise exceptions.SoundDoesNotExist(name)
 
         sound_id = sound[sound_names.c.sound_id]
         name = sound[sound_names.c.name]
@@ -182,7 +173,6 @@ class SoundBoard(commands.Cog):
 
         :param source: Download link to an archive. Can be omitted if archive is uploaded as an attachment.
         """
-
         if source is None:
             try:
                 source = ctx.message.attachments[0].url
@@ -237,37 +227,18 @@ class SoundBoard(commands.Cog):
 
     @commands.command()
     @commands.check(is_soundmaster)
-    async def add(self, ctx: commands.Context, name: str, source: str = None):
+    async def add(self, ctx: commands.Context, name: NewSound(), source: str = None):
         """
         Add a new sound to the soundboard.
 
         :param name: The name of the new sound.
         :param source: Download link to new sound. Can be omitted if sound is uploaded as an attachment.
         """
-        # Resolve download url.
-
-        if len(name) > 255:
-            raise exceptions.NameTooLong()
-
         if source is None:
             try:
                 source = ctx.message.attachments[0].url
             except (IndexError, KeyError):
                 raise exceptions.NoDownload()
-
-        # Disallow duplicate names
-        sound_exists = await self.bot.db.fetch_val(
-                select([
-                    exists([1])
-                        .where(and_(
-                            sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name
-                    ))
-                ])
-        )
-
-        if sound_exists:
-            raise exceptions.SoundExists(name)
 
         # Download file
         await ctx.trigger_typing()
@@ -342,35 +313,27 @@ class SoundBoard(commands.Cog):
 
     @commands.command()
     @commands.check(is_soundmaster)
-    async def alias(self, ctx: commands.Context, name: str, alias: str):
+    async def alias(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sound_names.c.sound_id, sound_names.c.name, sound_names.c.is_alias]),
+            alias: NewSound()
+    ):
         """
         Allows sounds to be played by a different name.
 
-        :param name: The sound to alias.
+        :param sound: The sound to alias.
         :param alias: The alias to assign
         """
 
-        if len(alias) > 255:
-            raise exceptions.NameTooLong()
+        name = sound[sound_names.c.name]
+        sound_id = sound[sound_names.c.sound_id]
+        is_already_alias = sound[sound_names.c.is_alias]
+
+        if is_already_alias:
+            raise exceptions.AliasTargetIsAlias()
 
         async with self.bot.db.transaction():
-            target_sound_name = await self.bot.db.fetch_one(
-                    select([sound_names.c.sound_id, sound_names.c.is_alias])
-                        .where(and_(
-                            sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name
-                    ))
-            )
-
-            if target_sound_name is None:
-                raise exceptions.SoundDoesNotExist(name)
-
-            sound_id = target_sound_name[sound_names.c.sound_id]
-            is_already_alias = target_sound_name[sound_names.c.is_alias]
-
-            if is_already_alias:
-                raise exceptions.AliasTargetIsAlias()
-
             try:
                 await self.bot.db.execute(
                         sound_names.insert()
@@ -391,27 +354,23 @@ class SoundBoard(commands.Cog):
 
     @commands.command(aliases=['del', 'rm'])
     @commands.check(is_soundmaster)
-    async def delete(self, ctx: commands.Context, name: str):
+    async def delete(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sound_names.c.id, sound_names.c.sound_id, sound_names.c.name, sound_names.c.is_alias])
+    ):
         """
         Delete a sound or an alias.
 
-        :param name: The name of the sound or alias to delete.
+        :param sound: The name of the sound or alias to delete.
         """
+
+        name = sound[sound_names.c.name]
+        name_id = sound[sound_names.c.id]
+        sound_id = sound[sound_names.c.sound_id]
+        is_alias = sound[sound_names.c.is_alias]
+
         async with self.bot.db.transaction():
-            sound_with_name = await self.bot.db.fetch_one(
-                    select([sound_names.c.id, sound_names.c.sound_id, sound_names.c.is_alias])
-                        .where(and_(
-                            sound_names.c.guild_id == ctx.guild.id,
-                            sound_names.c.name == name
-                    ))
-            )
-
-            if sound_with_name is None:
-                raise exceptions.SoundDoesNotExist(name)
-
-            name_id = sound_with_name[sound_names.c.id]
-            sound_id = sound_with_name[sound_names.c.sound_id]
-            is_alias = sound_with_name[sound_names.c.is_alias]
 
             if is_alias:
                 # if alias, just delete the alias.
@@ -427,30 +386,33 @@ class SoundBoard(commands.Cog):
 
     @commands.command(aliases=['mv'])
     @commands.check(is_soundmaster)
-    async def rename(self, ctx: commands.Context, name: str, new_name: str):
+    async def rename(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sound_names.c.name, sound_names.c.id]),
+            new_name: NewSound()
+    ):
         """
         Rename a sound or alias.
 
-        :param name: The name of the sound or alias to rename.
+        :param sound: The name of the sound or alias to rename.
         :param new_name: The new name.
         """
 
-        if len(new_name) > 255:
-            raise exceptions.NameTooLong()
+        name = sound[sound_names.c.name]
+        name_id = sound[sound_names.c.id]
 
         async with self.bot.db.transaction():
             try:
-                sound_exists = await self.bot.db.fetch_val(
+                updated = await self.bot.db.fetch_val(
                         sound_names.update()
-                            .returning(sound_names.c.id)
                             .values(name=new_name)
-                            .where(and_(
-                                sound_names.c.guild_id == ctx.guild.id,
-                                sound_names.c.name == name
-                        ))
+                            .where(sound_names.c.id == name_id)
+                            .returning(true())
                 )
-                if sound_exists is None:
+                if updated is None:
                     raise exceptions.SoundDoesNotExist(name)
+
                 file = self.sound_path / str(ctx.guild.id) / name
                 renamed = file.with_name(new_name)
                 shutil.move(str(file), str(renamed))
@@ -502,24 +464,15 @@ class SoundBoard(commands.Cog):
 
     @commands.command(aliases=['stat'])
     @commands.check(is_soundplayer)
-    async def info(self, ctx: commands.Context, name: str):
+    async def info(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sounds, sound_names], suggestions=True)):
         """
         Get info about a sound.
 
-        :param name: The sound to get info about.
+        :param sound: The sound to get info about.
         """
-
-        sound = await self.bot.db.fetch_one(
-                sounds.join(sound_names)
-                    .select()
-                    .where(and_(
-                        sound_names.c.guild_id == ctx.guild.id,
-                        sound_names.c.name == name
-                ))
-        )
-
-        if sound is None:
-            raise exceptions.SoundDoesNotExist(name)
 
         names = [
             record[sound_names.c.name]
@@ -587,7 +540,7 @@ class SoundBoard(commands.Cog):
         Search for a sound.
         """
 
-        records = await self._search(ctx.guild.id, query)
+        records = await self._search(self.bot.db, ctx.guild.id, query)
 
         if not records:
             await ctx.send('No results found.')
@@ -607,7 +560,8 @@ class SoundBoard(commands.Cog):
             response = header + '\n'.join(results)
             await ctx.send(response)
 
-    async def _search(self, guild_id, query, alias=None, limit=10):
+    @staticmethod
+    async def _search(db, guild_id, query, alias=None, limit=10):
         """
         Search for a sound.
 
@@ -631,7 +585,7 @@ class SoundBoard(commands.Cog):
 
         similarity = func.similarity(sound_names.c.name, query).label('similarity')
 
-        return await self.bot.db.fetch_all(
+        return await db.fetch_all(
                 select([
                     sound_names.c.name,
                     sound_names.c.is_alias,
