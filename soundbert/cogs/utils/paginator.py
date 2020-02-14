@@ -178,6 +178,7 @@ class DictionaryPaginator(Paginator):
                 char_count += len(item)
 
             page.append('\n')
+            char_count += 1
         if page:
             pages.append(page)
 
