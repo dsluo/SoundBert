@@ -129,7 +129,7 @@ class DictionaryPaginator(Paginator):
             return [f'**{self.header}**\nThere is nothing here.']
 
         split = OrderedDict()
-        for item in sorted(self.items):
+        for item in self.items:
             try:
                 first = item[0].lower()
                 if first not in 'abcdefghijklmnopqrstuvwxyz':
