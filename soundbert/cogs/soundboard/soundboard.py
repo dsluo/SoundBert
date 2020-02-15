@@ -4,12 +4,13 @@ import shutil
 import tempfile
 from collections import namedtuple
 from pathlib import Path
+from typing import Optional
 
 import aiohttp
 import asyncpg
 import discord
 import youtube_dl
-from discord import VoiceClient
+from discord import VoiceClient, VoiceChannel
 from discord.ext import commands
 from sqlalchemy import and_, select, func, true
 
@@ -27,6 +28,88 @@ log = logging.getLogger(__name__)
 
 PlaybackArgument = namedtuple('PlaybackArgument', ['volume', 'speed', 'seek'])
 _DEFAULT_PLAYBACK_ARGUMENTS = PlaybackArgument(1.0, None, None)
+
+
+class Playback:
+    def __init__(
+            self,
+            ctx: commands.Context,
+            sound_id: int,
+            name: str,
+            sound_path: Path,
+            volume=1.0,
+            speed=None,
+            seek=None
+    ):
+        self.ctx = ctx
+        self.sound_id = sound_id
+        self.name = name
+        self.sound_path = sound_path
+        self.volume = volume
+        self.speed = speed
+        self.seek = seek
+
+        self.vclient: Optional[VoiceClient] = None
+        self.vchannel = ctx.author.voice.channel
+
+    async def connect(self, channel: VoiceChannel):
+        log.debug('Connecting to voice channel.')
+        self.vclient: VoiceClient = self.ctx.guild.voice_client or await channel.connect()
+        await self.vclient.move_to(channel)
+
+    async def play(self):
+        log.debug(
+                f'Playing sound {self.name} ({self.sound_id}) '
+                f'in #{self.vchannel.name} ({self.vchannel.id}) '
+                f'of guild {self.ctx.guild.name} ({self.ctx.guild.id}).'
+        )
+
+        await self.connect(self.ctx.author.voice.channel)
+
+        file = self.sound_path / str(self.ctx.guild.id) / self.name
+
+        source = discord.FFmpegPCMAudio(
+                str(file),
+                before_options=f'-ss {self.seek}' if self.seek else None,
+                options=f'-filter:a "atempo={self.speed}"' if self.speed else None
+        )
+        source = discord.PCMVolumeTransformer(source, volume=self.volume if self.volume else 1.0)
+
+        async with self.ctx.bot.db.transaction():
+            await self.ctx.bot.db.execute(
+                    sounds.update()
+                        .values(played=sounds.c.played + 1)
+                        .where(sounds.c.id == self.sound_id)
+            )
+
+            log.debug('Starting playback.')
+            self.vclient.play(source=source, after=self.sync_stop)
+
+    def sync_stop(self, _error):
+        coro = self.stop()
+        future = asyncio.run_coroutine_threadsafe(coro, self.ctx.bot.loop)
+        try:
+            future.result()
+        except Exception:
+            log.exception('Failed to stop playback.')
+
+    async def stop(self, user=False):
+        log.debug('Stopping playback.')
+        try:
+            vclient = self.ctx.guild.voice_client
+        except AttributeError:
+            return
+
+        if user:
+            async with self.ctx.bot.db.transaction():
+                await self.ctx.bot.db.execute(
+                        sounds.update()
+                            .values(stopped=sounds.c.stopped + 1)
+                            .where(sounds.c.id == self.sound_id)
+                )
+                await vclient.disconnect(force=True)
+        else:
+            await vclient.disconnect(force=True)
 
 
 # noinspection PyIncorrectDocstring
@@ -75,53 +158,11 @@ class SoundBoard(commands.Cog):
         sound_id = sound[sound_names.c.sound_id]
         name = sound[sound_names.c.name]
 
-        file = self.sound_path / str(ctx.guild.id) / name
+        playback = Playback(ctx, sound_id, name, self.sound_path, *args)
 
-        channel: discord.VoiceChannel = ctx.author.voice.channel
+        self.playing[ctx.guild.id] = playback
 
-        log.debug(
-                f'Playing sound {name} ({sound_id}) in #{channel.name} ({channel.id}) of guild {ctx.guild.name} ({ctx.guild.id}).'
-        )
-
-        log.debug('Connecting to voice channel.')
-        vclient: VoiceClient = ctx.guild.voice_client or await channel.connect()
-        await vclient.move_to(channel)
-
-        source = discord.FFmpegPCMAudio(
-                str(file),
-                before_options=f'-ss {args.seek}' if args.seek else None,
-                options=f'-filter:a "atempo={args.speed}"' if args.speed else None
-        )
-        source = discord.PCMVolumeTransformer(source, volume=args.volume if args.volume else 1.0)
-
-        async def stop():
-            log.debug('Stopping playback.')
-            await vclient.disconnect(force=True)
-            return sound_id
-
-        def wrapper(error):
-            try:
-                # todo: this could result in a race condition if a sound is played very soon after stopping i think
-                coro = self.playing.pop(ctx.guild.id)
-                future = asyncio.run_coroutine_threadsafe(coro, self.bot.loop)
-                try:
-                    future.result()
-                except:
-                    pass
-            except KeyError:
-                # sound was stopped with stop command, so do nothing.
-                pass
-
-        self.playing[ctx.guild.id] = stop()
-
-        await self.bot.db.execute(
-                sounds.update()
-                    .values(played=sounds.c.played + 1)
-                    .where(sounds.c.id == sound_id)
-        )
-
-        log.debug('Starting playback.')
-        vclient.play(source=source, after=wrapper)
+        await playback.play()
 
     @commands.command(name='import', hidden=True)
     # @commands.check(is_soundmaster)
@@ -412,12 +453,8 @@ class SoundBoard(commands.Cog):
         """
 
         try:
-            id = await self.playing.pop(ctx.guild.id)
-            await self.bot.db.execute(
-                    sounds.update()
-                        .values(stopped=sounds.c.stopped + 1)
-                        .where(sounds.c.id == id)
-            )
+            playback = self.playing.pop(ctx.guild.id)
+            await playback.stop()
         except KeyError:
             # nothing was playing
             pass
