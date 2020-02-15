@@ -390,7 +390,7 @@ class SoundBoard(commands.Cog):
 
         try:
             playback = self.playing.pop(ctx.guild.id)
-            await playback.stop()
+            await playback.stop(user=True)
         except KeyError:
             # nothing was playing
             pass
