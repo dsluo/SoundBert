@@ -139,31 +139,6 @@ class SoundBoard(commands.Cog):
 
         return float(length)
 
-    @commands.command(aliases=['!'])
-    @commands.check(is_soundplayer)
-    @commands.check(is_in_voice)
-    async def play(
-            self,
-            ctx: commands.Context,
-            sound: ExistingSound([sound_names.c.sound_id, sound_names.c.name], suggestions=True),
-            *,
-            args: PlaybackArgumentConverter = _DEFAULT_PLAYBACK_ARGUMENTS
-    ):
-        """
-        Play a sound.
-
-        :param sound: The name of the sound to play.
-        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
-        """
-        sound_id = sound[sound_names.c.sound_id]
-        name = sound[sound_names.c.name]
-
-        playback = Playback(ctx, sound_id, name, self.sound_path, *args)
-
-        self.playing[ctx.guild.id] = playback
-
-        await playback.play()
-
     @commands.command(name='import', hidden=True)
     # @commands.check(is_soundmaster)
     @commands.is_owner()
@@ -353,74 +328,72 @@ class SoundBoard(commands.Cog):
             else:
                 await ok(ctx)
 
-    @commands.command(aliases=['del', 'rm'])
-    @commands.check(is_soundmaster)
-    async def delete(
+    @commands.command(aliases=['!'])
+    @commands.check(is_soundplayer)
+    @commands.check(is_in_voice)
+    async def play(
             self,
             ctx: commands.Context,
-            sound: ExistingSound([sound_names.c.id, sound_names.c.sound_id, sound_names.c.name, sound_names.c.is_alias])
+            sound: ExistingSound([sound_names.c.sound_id, sound_names.c.name], suggestions=True),
+            *,
+            args: PlaybackArgumentConverter = _DEFAULT_PLAYBACK_ARGUMENTS
     ):
         """
-        Delete a sound or an alias.
+        Play a sound.
 
-        :param sound: The name of the sound or alias to delete.
+        :param sound: The name of the sound to play.
+        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
         """
-
-        name = sound[sound_names.c.name]
-        name_id = sound[sound_names.c.id]
         sound_id = sound[sound_names.c.sound_id]
-        is_alias = sound[sound_names.c.is_alias]
-
-        async with self.bot.db.transaction():
-
-            if is_alias:
-                # if alias, just delete the alias.
-                await self.bot.db.execute(sound_names.delete().where(sound_names.c.id == name_id))
-            else:
-                # if not alias, delete the sound and CASCADE will take care of the names and aliases.
-                await self.bot.db.execute(sounds.delete().where(sounds.c.id == sound_id))
-
-            # aliases are symbolic links, so this will still work
-            file = self.sound_path / str(ctx.guild.id) / name
-            file.unlink()
-            await ok(ctx)
-
-    @commands.command(aliases=['mv'])
-    @commands.check(is_soundmaster)
-    async def rename(
-            self,
-            ctx: commands.Context,
-            sound: ExistingSound([sound_names.c.name, sound_names.c.id]),
-            new_name: NewSound()
-    ):
-        """
-        Rename a sound or alias.
-
-        :param sound: The name of the sound or alias to rename.
-        :param new_name: The new name.
-        """
-
         name = sound[sound_names.c.name]
-        name_id = sound[sound_names.c.id]
 
-        async with self.bot.db.transaction():
-            try:
-                updated = await self.bot.db.fetch_val(
-                        sound_names.update()
-                            .values(name=new_name)
-                            .where(sound_names.c.id == name_id)
-                            .returning(true())
-                )
-                if updated is None:
-                    raise exceptions.SoundDoesNotExist(name)
+        playback = Playback(ctx, sound_id, name, self.sound_path, *args)
 
-                file = self.sound_path / str(ctx.guild.id) / name
-                renamed = file.with_name(new_name)
-                shutil.move(str(file), str(renamed))
-            except asyncpg.UniqueViolationError:
-                raise exceptions.SoundExists(new_name)
-            else:
-                await ok(ctx)
+        self.playing[ctx.guild.id] = playback
+
+        await playback.play()
+
+    @commands.command()
+    @commands.check(is_soundplayer)
+    @commands.check(is_in_voice)
+    async def rand(self, ctx: commands.Context, *, args: PlaybackArgumentConverter() = _DEFAULT_PLAYBACK_ARGUMENTS):
+        """
+        Play a random sound.
+
+        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
+        """
+
+        sound = await self.bot.db.fetch_one(
+                select([sound_names.c.sound_id, sound_names.c.name])
+                    .where(
+                        and_(
+                                sound_names.c.guild_id == ctx.guild.id,
+                                ~sound_names.c.is_alias
+                        ))
+                    .offset(
+                        func.floor(
+                                func.random() *
+                                select([func.count()])
+                                .select_from(sound_names)
+                                .where(sound_names.c.guild_id == ctx.guild.id)))
+                    .limit(1)
+        )
+        log.debug(f'Playing random sound {sound[sound_names.c.name]}.')
+        await ctx.invoke(self.play, sound, args=args)
+
+    @commands.command()
+    @commands.check(is_soundplayer)
+    async def stop(self, ctx: commands.Context):
+        """
+        Stop playback of the current sound.
+        """
+
+        try:
+            playback = self.playing.pop(ctx.guild.id)
+            await playback.stop()
+        except KeyError:
+            # nothing was playing
+            pass
 
     @commands.command(aliases=['ls'])
     @commands.check(is_soundplayer)
@@ -444,20 +417,6 @@ class SoundBoard(commands.Cog):
         all_sounds = [sound[sound_names.c.name] for sound in all_sounds]
         paginator = DictionaryPaginator(ctx, items=all_sounds, header='**Sounds**')
         await paginator.paginate()
-
-    @commands.command()
-    @commands.check(is_soundplayer)
-    async def stop(self, ctx: commands.Context):
-        """
-        Stop playback of the current sound.
-        """
-
-        try:
-            playback = self.playing.pop(ctx.guild.id)
-            await playback.stop()
-        except KeyError:
-            # nothing was playing
-            pass
 
     @commands.command(aliases=['stat'])
     @commands.check(is_soundplayer)
@@ -502,34 +461,6 @@ class SoundBoard(commands.Cog):
             embed.add_field(name='Aliases', value=', '.join(aliases))
 
         await ctx.send(embed=embed)
-
-    @commands.command()
-    @commands.check(is_soundplayer)
-    @commands.check(is_in_voice)
-    async def rand(self, ctx: commands.Context, *, args: PlaybackArgumentConverter() = _DEFAULT_PLAYBACK_ARGUMENTS):
-        """
-        Play a random sound.
-
-        :param args: The volume/speed of playback, in format v[XX%] s[SS%]. e.g. v50 s100 for 50% sound, 100% speed.
-        """
-
-        sound = await self.bot.db.fetch_one(
-                select([sound_names.c.sound_id, sound_names.c.name])
-                    .where(
-                        and_(
-                                sound_names.c.guild_id == ctx.guild.id,
-                                ~sound_names.c.is_alias
-                        ))
-                    .offset(
-                        func.floor(
-                                func.random() *
-                                select([func.count()])
-                                .select_from(sound_names)
-                                .where(sound_names.c.guild_id == ctx.guild.id)))
-                    .limit(1)
-        )
-        log.debug(f'Playing random sound {sound[sound_names.c.name]}.')
-        await ctx.invoke(self.play, sound, args=args)
 
     @commands.command(aliases=['find'])
     @commands.check(is_soundplayer)
@@ -593,3 +524,72 @@ class SoundBoard(commands.Cog):
                     .order_by(similarity.desc())
                     .limit(limit)
         )
+
+    @commands.command(aliases=['mv'])
+    @commands.check(is_soundmaster)
+    async def rename(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sound_names.c.name, sound_names.c.id]),
+            new_name: NewSound()
+    ):
+        """
+        Rename a sound or alias.
+
+        :param sound: The name of the sound or alias to rename.
+        :param new_name: The new name.
+        """
+
+        name = sound[sound_names.c.name]
+        name_id = sound[sound_names.c.id]
+
+        async with self.bot.db.transaction():
+            try:
+                updated = await self.bot.db.fetch_val(
+                        sound_names.update()
+                            .values(name=new_name)
+                            .where(sound_names.c.id == name_id)
+                            .returning(true())
+                )
+                if updated is None:
+                    raise exceptions.SoundDoesNotExist(name)
+
+                file = self.sound_path / str(ctx.guild.id) / name
+                renamed = file.with_name(new_name)
+                shutil.move(str(file), str(renamed))
+            except asyncpg.UniqueViolationError:
+                raise exceptions.SoundExists(new_name)
+            else:
+                await ok(ctx)
+
+    @commands.command(aliases=['del', 'rm'])
+    @commands.check(is_soundmaster)
+    async def delete(
+            self,
+            ctx: commands.Context,
+            sound: ExistingSound([sound_names.c.id, sound_names.c.sound_id, sound_names.c.name, sound_names.c.is_alias])
+    ):
+        """
+        Delete a sound or an alias.
+
+        :param sound: The name of the sound or alias to delete.
+        """
+
+        name = sound[sound_names.c.name]
+        name_id = sound[sound_names.c.id]
+        sound_id = sound[sound_names.c.sound_id]
+        is_alias = sound[sound_names.c.is_alias]
+
+        async with self.bot.db.transaction():
+
+            if is_alias:
+                # if alias, just delete the alias.
+                await self.bot.db.execute(sound_names.delete().where(sound_names.c.id == name_id))
+            else:
+                # if not alias, delete the sound and CASCADE will take care of the names and aliases.
+                await self.bot.db.execute(sounds.delete().where(sounds.c.id == sound_id))
+
+            # aliases are symbolic links, so this will still work
+            file = self.sound_path / str(ctx.guild.id) / name
+            file.unlink()
+            await ok(ctx)
