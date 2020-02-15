@@ -108,7 +108,7 @@ class PlaybackArgumentConverter(commands.Converter):
                         raise exceptions.BadPlaybackArgs(args)
                 elif arg.startswith('t'):
                     try:
-                        split = args[1:].split(':', maxsplit=2)
+                        split = arg[1:].split(':', maxsplit=2)
                         hours, mins, secs = ['0'] * (3 - len(split)) + split
 
                         # prevents command line injection
