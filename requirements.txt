@@ -22,6 +22,6 @@ python-editor==1.0.4
 six==1.14.0
 SQLAlchemy==1.3.13
 uvloop==0.14.0; platform_system!="Windows"
-websockets==8.1
+websockets==9.1
 yarl==1.4.2
 youtube-dl==2020.1.24
