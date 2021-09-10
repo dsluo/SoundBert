@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "soundbert_backend"
+version = "2.0.0"
+description = ""
+authors = ["dsluo <me@dsluo.dev>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+fastapi = "^0.68.1"
+uvicorn = {extras = ["standard"], version = "^0.15.0"}
+SQLAlchemy = {extras = ["asyncio"], version = "^1.4.23"}
+python-decouple = "^3.4"
+asyncpg = "^0.24.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
