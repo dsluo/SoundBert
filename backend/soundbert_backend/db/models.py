@@ -19,6 +19,9 @@ class Guild(Base, TimestampMixin):
 
 class Sound(Base, TimestampMixin):
     __tablename__ = 'sounds'
+    __table_args__ = (
+        UniqueConstraint('name', 'guild_id'),
+    )
 
     id = Column(Integer, primary_key=True)
     name = Column(Text, nullable=False)
