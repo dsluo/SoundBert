@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from ..db.base import get_session
+from ..db.engine import get_session
 from ..db.models import Sound
 from ..schema import SoundCreate, SoundRead, SoundUpdate
 

@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from ..db.base import get_session
+from ..db.engine import get_session
 from ..db.models import Guild
 from ..schema import GuildRead, GuildCreate, GuildUpdate
 
