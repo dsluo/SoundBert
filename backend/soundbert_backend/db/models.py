@@ -1,8 +1,9 @@
-from sqlalchemy import Column, BigInteger, String, Text, DateTime, func, ForeignKey, Float, Integer
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, BigInteger, String, Text, DateTime, func, ForeignKey, Float, Integer, UniqueConstraint
+from sqlalchemy.orm import relationship, declarative_base
 
-from .base import Base
 from .. import settings
+
+Base = declarative_base()
 
 class TimestampMixin:
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
