@@ -1,0 +1,10 @@
+services:
+    db:
+        image: postgres:13-alpine
+        restart: unless-stopped
+        environment:
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+        volumes:
+            - /var/lib/postgres/data
+        ports:
+            - 5432:5432
