@@ -15,7 +15,7 @@ router = APIRouter(
 
 
 @router.post('/', response_model=PlaybackRead)
-def create_playback(create: PlaybackCreate, db: AsyncSession = Depends(get_session)):
+async def create_playback(create: PlaybackCreate, db: AsyncSession = Depends(get_session)):
     playback = Playback(**create.dict())
 
     db.add(playback)
@@ -23,7 +23,7 @@ def create_playback(create: PlaybackCreate, db: AsyncSession = Depends(get_sessi
     return playback
 
 @router.get('/{id}', response_model=PlaybackRead)
-def get_playback(id: int, db: AsyncSession = Depends(get_session)):
+async def get_playback(id: int, db: AsyncSession = Depends(get_session)):
     playback = await db.get(Playback, id)
     if playback is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -31,7 +31,7 @@ def get_playback(id: int, db: AsyncSession = Depends(get_session)):
     return playback
 
 @router.put('/{id}', response_model=PlaybackRead)
-def update_playback(id: int, update: PlaybackUpdate, db: AsyncSession = Depends(get_session)):
+async def update_playback(id: int, update: PlaybackUpdate, db: AsyncSession = Depends(get_session)):
     playback = await db.get(Playback, id)
     if playback is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -43,7 +43,7 @@ def update_playback(id: int, update: PlaybackUpdate, db: AsyncSession = Depends(
     return playback
 
 @router.delete('/{id}', response_model=PlaybackRead)
-def delete_playback(id: int, db: AsyncSession = Depends(get_session)):
+async def delete_playback(id: int, db: AsyncSession = Depends(get_session)):
     playback = await db.get(Playback, id)
     if playback is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
