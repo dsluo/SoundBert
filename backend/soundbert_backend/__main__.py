@@ -1,9 +1,10 @@
 import uvicorn
 
-from . import settings, app
+from .main import app
+from . import settings
 
 if __name__ == '__main__':
 
     reload = settings.ENVIRONMENT == 'development'
 
-    uvicorn.run(app)
+    uvicorn.run(app, reload=reload)
