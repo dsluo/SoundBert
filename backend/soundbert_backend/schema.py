@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
+import pydantic
 from pydantic import BaseModel
 
 
@@ -29,7 +30,7 @@ class GuildUpdate(BaseModel):
 class SoundCreate(BaseModel):
     name: str
     guild_id: int
-    source: str
+    source: pydantic.AnyHttpUrl
     uploaded_by: int
 
 

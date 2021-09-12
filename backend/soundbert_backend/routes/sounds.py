@@ -1,5 +1,8 @@
+import asyncio
+from pathlib import Path
 from typing import List
 
+import youtube_dl
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +11,7 @@ from starlette import status
 from ..db.engine import get_session
 from ..db.models import Sound
 from ..schema import SoundCreate, SoundRead, SoundUpdate
+from ..storage import get_storage, SoundStorage
 
 router = APIRouter(
         prefix='/sounds',
@@ -15,11 +19,50 @@ router = APIRouter(
 )
 
 
+def _download_sound(url: str):
+    options = {
+        'format':            'webm[abr>0]/bestaudio/best',
+        'restrictfilenames': True,
+        'default_search':    'error'
+    }
+
+    yt = youtube_dl.YoutubeDL(options)
+    info = yt.extract_info(url, download=True)
+    filename = yt.prepare_filename(info)
+
+    return info, Path(filename)
+
+
 @router.post('/', response_model=SoundRead)
-async def create_sound(create: SoundCreate, db: AsyncSession = Depends(get_session)):
+async def create_sound(
+        create: SoundCreate,
+        db: AsyncSession = Depends(get_session),
+        storage: SoundStorage = Depends(get_storage)):
+    # see if the sound exists already to avoid unnecessary downloads.
+    exists = await db.execute(
+            select(1)
+                .select_from(Sound)
+                .where(Sound.guild_id == create.guild_id)
+                .where(Sound.name == create.name)
+                .exists()
+                .select()
+    )
+    if exists.scalar():
+        raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                detail=f'Sound named "{create.name}" already exists for guild ID {create.guild_id}'
+        )
     sound = Sound(**create.dict())
 
-    sound.length = 0
+    loop = asyncio.get_running_loop()
+    try:
+        info, file = await loop.run_in_executor(None, _download_sound, create.source)
+    except youtube_dl.DownloadError as e:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=e.args)
+
+    sound.length = info.get('duration')
+
+    await storage.store_sound(create.guild_id, create.name, file)
 
     db.add(sound)
     await db.commit()

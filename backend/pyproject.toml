@@ -12,6 +12,7 @@ uvicorn = {extras = ["standard"], version = "^0.15.0"}
 SQLAlchemy = {extras = ["asyncio"], version = "^1.4.23"}
 python-decouple = "^3.4"
 asyncpg = "^0.24.0"
+youtube_dl = "^2021.6.6"
 
 [tool.poetry.dev-dependencies]
 
