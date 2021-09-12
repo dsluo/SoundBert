@@ -8,7 +8,7 @@ from ..schema import GuildRead, GuildCreate, GuildUpdate
 
 router = APIRouter(
         prefix='/guilds',
-        tags=['gulids']
+        tags=['guilds']
 )
 
 
