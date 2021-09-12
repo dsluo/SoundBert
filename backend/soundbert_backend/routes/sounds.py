@@ -33,7 +33,7 @@ def _download_sound(url: str):
     return info, Path(filename)
 
 
-@router.post('/', response_model=SoundRead)
+@router.post('/', response_model=SoundRead, status_code=status.HTTP_201_CREATED)
 async def create_sound(
         create: SoundCreate,
         db: AsyncSession = Depends(get_session),

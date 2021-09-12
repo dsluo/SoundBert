@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 
-@router.post('/', response_model=PlaybackRead)
+@router.post('/', response_model=PlaybackRead, status_code=status.HTTP_201_CREATED)
 async def create_playback(create: PlaybackCreate, db: AsyncSession = Depends(get_session)):
     playback = Playback(**create.dict())
 
