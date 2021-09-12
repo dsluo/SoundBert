@@ -33,20 +33,6 @@ class SoundStorage(abc.ABC):
     def __init__(self, *config):
         self.config = dict(zip(self.config_options, config))
 
-    @abc.abstractmethod
-    async def retrieve_sound(self, guild_id: int, name: str) -> Union[Path, str]:
-        raise NotImplementedError
-
-    async def store_sound(self, guild_id: int, name: str, file: Path, overwrite=False):
-        try:
-            await self._move_sound(guild_id, name, file, overwrite)
-        finally:
-            file.unlink(missing_ok=True)
-
-    @abc.abstractmethod
-    async def _move_sound(self, guild_id: int, name: str, file: Path, overwrite=False):
-        raise NotImplementedError
-
     @staticmethod
     def providers() -> Dict[str, Type['SoundStorage']]:
         def recursive_subclasses(cls):
@@ -60,6 +46,37 @@ class SoundStorage(abc.ABC):
         )
         return {provider.name: provider for provider in providers}
 
+    # Create
+    async def store(self, guild_id: int, name: str, file: Path, overwrite=False):
+        try:
+            await self._move(guild_id, name, file, overwrite)
+        finally:
+            file.unlink(missing_ok=True)
+
+
+    @abc.abstractmethod
+    async def _move(self, guild_id: int, name: str, file: Path, overwrite=False):
+        """
+        Move sound to its final location.
+        """
+        raise NotImplementedError
+
+    # Read
+    @abc.abstractmethod
+    async def retrieve(self, guild_id: int, name: str) -> Union[Path, str]:
+        raise NotImplementedError
+
+    # Update
+    @abc.abstractmethod
+    async def rename(self, guild_id: int, old_name: str, new_name: str):
+        raise NotImplementedError
+
+    # Delete
+    @abc.abstractmethod
+    async def delete(self, guild_id: int, name: str):
+        raise NotImplementedError
+
+
 
 class LocalSoundStorage(SoundStorage):
     name = 'local'
@@ -70,13 +87,8 @@ class LocalSoundStorage(SoundStorage):
         self.directory = Path(directory)
         self.directory.mkdir(exist_ok=True)
 
-    async def retrieve_sound(self, guild_id: int, name: str):
-        file = self.directory / str(guild_id) / name
-        if not file.is_file():
-            raise FileNotFoundError
-        return file
 
-    async def _move_sound(self, guild_id: int, name: str, file: Path, overwrite=False):
+    async def _move(self, guild_id: int, name: str, file: Path, overwrite=False):
         server_dir = self.directory / str(guild_id)
         server_dir.mkdir(exist_ok=True)
         destination = server_dir / name
@@ -84,3 +96,18 @@ class LocalSoundStorage(SoundStorage):
             raise FileExistsError
 
         shutil.move(str(file), str(destination))
+
+    async def retrieve(self, guild_id: int, name: str):
+        file = self.directory / str(guild_id) / name
+        if not file.is_file():
+            raise FileNotFoundError
+        return file
+
+    async def rename(self, guild_id: int, old_name: str, new_name: str):
+        file = self.directory / str(guild_id) / old_name
+        # todo: will this work in docker volumes? or will we have to use shutil?
+        file.rename(new_name)
+
+    async def delete(self, guild_id: int, name: str):
+        file = self.directory / str(guild_id) / name
+        file.unlink()

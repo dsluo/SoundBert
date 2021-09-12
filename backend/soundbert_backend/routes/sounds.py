@@ -62,7 +62,7 @@ async def create_sound(
 
     sound.length = info.get('duration')
 
-    await storage.store_sound(create.guild_id, create.name, file)
+    await storage.store(create.guild_id, create.name, file)
 
     db.add(sound)
     await db.commit()
@@ -92,23 +92,36 @@ async def get_sound(id: int, db: AsyncSession = Depends(get_session)):
 
 
 @router.put('/{id}', response_model=SoundRead)
-async def update_sound(id: int, update: SoundUpdate, db: AsyncSession = Depends(get_session)):
+async def update_sound(
+        id: int,
+        update: SoundUpdate,
+        db: AsyncSession = Depends(get_session),
+        storage: SoundStorage = Depends(get_storage)):
     sound = await db.get(Sound, id)
     if sound is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
 
+    rename_args = sound.guild_id, sound.name, update.name
+
     for key, value in update.dict().items():
         setattr(sound, key, value)
+
+    await storage.rename(*rename_args)
 
     await db.commit()
     return sound
 
 
 @router.delete('/{id}', response_model=SoundRead)
-async def delete_sound(id: int, db: AsyncSession = Depends(get_session)):
+async def delete_sound(
+        id: int,
+        db: AsyncSession = Depends(get_session),
+        storage: SoundStorage = Depends(get_storage)):
     sound = await db.get(Sound, id)
     if sound is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
+
+    await storage.delete(sound.guild_id, sound.name)
 
     await db.delete(sound)
     await db.commit()
